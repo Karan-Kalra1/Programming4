@@ -15,6 +15,9 @@
 #include "SceneManager.h"
 #include "Renderer.h"
 #include "ResourceManager.h"
+#include "MiniginTime.h"
+
+using clocking = std::chrono::high_resolution_clock;
 
 SDL_Window* g_window{};
 
@@ -90,6 +93,9 @@ dae::Minigin::~Minigin()
 void dae::Minigin::Run(const std::function<void()>& load)
 {
 	load();
+
+	m_lastTime = clocking::now();
+
 #ifndef __EMSCRIPTEN__
 	while (!m_quit)
 		RunOneFrame();
@@ -100,7 +106,17 @@ void dae::Minigin::Run(const std::function<void()>& load)
 
 void dae::Minigin::RunOneFrame()
 {
+	auto currentTime = clocking::now();
+
+	float deltaTime =
+		std::chrono::duration<float>(currentTime - m_lastTime).count();
+
+	m_lastTime = currentTime;
+
+	dae::MiniginTime::SetDeltaTime(deltaTime);
+
 	m_quit = !InputManager::GetInstance().ProcessInput();
 	SceneManager::GetInstance().Update();
 	Renderer::GetInstance().Render();
+	
 }

@@ -8,7 +8,11 @@
 #include "Minigin.h"
 #include "SceneManager.h"
 #include "ResourceManager.h"
-#include "TextObject.h"
+#include "TextComponent.h"
+#include "TransformComponent.h"
+#include "RenderComponent.h"
+#include "FPSComponent.h"
+#include "TextComponent.h"
 #include "Scene.h"
 
 #include <filesystem>
@@ -16,22 +20,63 @@ namespace fs = std::filesystem;
 
 static void load()
 {
+	
 	auto& scene = dae::SceneManager::GetInstance().CreateScene();
 
-	auto go = std::make_unique<dae::GameObject>();
-	go->SetTexture("background.png");
-	scene.Add(std::move(go));
+	
+	auto font =
+		dae::ResourceManager::GetInstance()
+		.LoadFont("Lingua.otf", 36);
 
-	go = std::make_unique<dae::GameObject>();
-	go->SetTexture("logo.png");
-	go->SetPosition(358, 180);
-	scene.Add(std::move(go));
+	
+	{
+		auto go = std::make_unique<dae::GameObject>();
 
-	auto font = dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 36);
-	auto to = std::make_unique<dae::TextObject>("Programming 4 Assignment", font);
-	to->SetColor({ 255, 255, 0, 255 });
-	to->SetPosition(292, 20);
-	scene.Add(std::move(to));
+		auto transform =
+			go->AddComponent<dae::TransformComponent>();
+		transform->SetPosition(0, 0);
+
+		auto tex =
+			dae::ResourceManager::GetInstance()
+			.LoadTexture("background.png");
+
+		go->AddComponent<dae::RenderComponent>(tex);
+
+		scene.Add(std::move(go));
+	}
+
+	
+	{
+		auto go = std::make_unique<dae::GameObject>();
+
+		auto transform =
+			go->AddComponent<dae::TransformComponent>();
+		transform->SetPosition(358, 180);
+
+		auto tex =
+			dae::ResourceManager::GetInstance()
+			.LoadTexture("logo.png");
+
+		go->AddComponent<dae::RenderComponent>(tex);
+
+		scene.Add(std::move(go));
+	}
+
+
+	
+	{
+		auto fpsObj = std::make_unique<dae::GameObject>();
+
+		auto tr =
+			fpsObj->AddComponent<dae::TransformComponent>();
+		tr->SetPosition(20, 20);
+
+		fpsObj->AddComponent<dae::TextComponent>("FPS", font);
+		fpsObj->AddComponent<dae::FPSComponent>();
+
+		scene.Add(std::move(fpsObj));
+	}
+
 }
 
 int main(int, char*[]) {
