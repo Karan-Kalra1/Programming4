@@ -11,12 +11,12 @@ namespace dae
 	{
 		
 	public:
-		virtual void Update();
-		virtual void Render() const;
+		 void Update();
+		 void Render() const;
 
 
 		GameObject() = default;
-		virtual ~GameObject();
+		~GameObject();
 		GameObject(const GameObject& other) = delete;
 		GameObject(GameObject&& other) = delete;
 		GameObject& operator=(const GameObject& other) = delete;
