@@ -33,14 +33,14 @@ static void load()
 		auto go = std::make_unique<dae::GameObject>();
 
 		auto transform =
-			go->AddComponent<dae::TransformComponent>();
+			go->AddComponent<dae::TransformComponent>(go.get());
 		transform->SetPosition(0, 0);
 
 		auto tex =
 			dae::ResourceManager::GetInstance()
 			.LoadTexture("background.png");
 
-		go->AddComponent<dae::RenderComponent>(tex);
+		go->AddComponent<dae::RenderComponent>(go.get(),tex);
 
 		scene.Add(std::move(go));
 	}
@@ -50,14 +50,14 @@ static void load()
 		auto go = std::make_unique<dae::GameObject>();
 
 		auto transform =
-			go->AddComponent<dae::TransformComponent>();
+			go->AddComponent<dae::TransformComponent>(go.get());
 		transform->SetPosition(358, 180);
 
 		auto tex =
 			dae::ResourceManager::GetInstance()
 			.LoadTexture("logo.png");
 
-		go->AddComponent<dae::RenderComponent>(tex);
+		go->AddComponent<dae::RenderComponent>(go.get(), tex);
 
 		scene.Add(std::move(go));
 	}
@@ -68,11 +68,11 @@ static void load()
 		auto fpsObj = std::make_unique<dae::GameObject>();
 
 		auto tr =
-			fpsObj->AddComponent<dae::TransformComponent>();
+			fpsObj->AddComponent<dae::TransformComponent>(fpsObj.get());
 		tr->SetPosition(20, 20);
 
-		fpsObj->AddComponent<dae::TextComponent>("FPS", font);
-		fpsObj->AddComponent<dae::FPSComponent>();
+		fpsObj->AddComponent<dae::TextComponent>(fpsObj.get(), "FPS", font);
+		fpsObj->AddComponent<dae::FPSComponent>(fpsObj.get());
 
 		scene.Add(std::move(fpsObj));
 	}

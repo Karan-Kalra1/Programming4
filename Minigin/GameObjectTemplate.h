@@ -6,8 +6,6 @@ namespace dae
 	T* GameObject::AddComponent(Args&&... args)
 	{
 		auto comp = std::make_unique<T>(std::forward<Args>(args)...);
-		comp->SetOwner(this);
-
 		T* ptr = comp.get();
 		m_components.push_back(std::move(comp));
 		return ptr;

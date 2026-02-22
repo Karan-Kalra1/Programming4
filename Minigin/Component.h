@@ -7,8 +7,9 @@ namespace dae
 	class Component
 	{
 	public:
-		virtual ~Component() = default;
 
+		Component(GameObject* owner) : m_pOwner( owner ) {}
+		virtual ~Component() = default;
 		virtual void Update() {}
 		virtual void Render() const {}
 

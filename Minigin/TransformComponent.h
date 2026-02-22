@@ -7,6 +7,9 @@ namespace dae
 	class TransformComponent final : public Component
 	{
 	public:
+
+		TransformComponent(GameObject* owner) :Component::Component(owner) {}
+
 		void SetPosition(float x, float y, float z = 0.f)
 		{
 			m_position = { x,y,z };

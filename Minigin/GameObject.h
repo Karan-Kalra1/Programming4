@@ -22,6 +22,10 @@ namespace dae
 		GameObject& operator=(const GameObject& other) = delete;
 		GameObject& operator=(GameObject&& other) = delete;
 
+		void MarkForDelete() { m_markForDelete = true; }
+
+		bool GetMarkForDelete() { return m_markForDelete; }
+
 		template<typename T, typename... Args>
 		T* AddComponent(Args&&... args);
 
@@ -36,7 +40,7 @@ namespace dae
 
 	private:
 		std::vector<std::unique_ptr<Component>> m_components;
-
+		bool m_markForDelete{ false };
 
 	};
 }

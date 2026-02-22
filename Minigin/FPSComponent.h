@@ -12,6 +12,9 @@ namespace dae
 	class FPSComponent final : public Component
 	{
 	public:
+
+		FPSComponent(GameObject* owner) : Component::Component(owner) {}
+
 		void Update() override
 		{
 			m_time += MiniginTime::GetDeltaTime();
