@@ -10,7 +10,7 @@ namespace dae
 	{
 	public:
 		RenderComponent(GameObject* owner,std::shared_ptr<Texture2D> texture)
-			: m_texture(texture), Component::Component(owner)
+			: Component::Component(owner),m_texture(texture)
 		{
 			
 		}
