@@ -12,11 +12,12 @@ dae::TextComponent::TextComponent(GameObject* owner,
 	const std::string& text,
 	std::shared_ptr<Font> font,
 	const SDL_Color& color)
-	: m_needsUpdate(true),
+	: Component::Component(owner),
+	m_needsUpdate(true),
 	m_text(text),
 	m_color(color),
-	m_font(std::move(font)),
-	Component::Component(owner)
+	m_font(std::move(font))
+	
 {
 }
 

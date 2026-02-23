@@ -5,7 +5,7 @@
 #include <cmath>
 
 dae::CircularMovementComponent::CircularMovementComponent(GameObject* owner,float radius, float speed)
-    : m_radius(radius), m_speed(speed), Component::Component(owner)
+    : Component::Component(owner), m_radius(radius), m_speed(speed)
 {
 }
 
