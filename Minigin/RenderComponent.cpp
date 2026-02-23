@@ -10,6 +10,7 @@ void dae::RenderComponent::Render() const
 	if (!transform || !m_texture)
 		return;
 
-	const auto& pos = transform->GetPosition();
-	Renderer::GetInstance().RenderTexture(*m_texture, pos.x, pos.y);
+	const auto& pos = transform->GetWorldPosition();
+	const auto& scale = transform->GetWorldScale();
+	Renderer::GetInstance().RenderTexture(*m_texture, pos.x, pos.y,scale.x,scale.y);
 }

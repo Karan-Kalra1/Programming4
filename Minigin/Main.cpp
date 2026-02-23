@@ -13,6 +13,8 @@
 #include "RenderComponent.h"
 #include "FPSComponent.h"
 #include "TextComponent.h"
+#include "Texture2D.h"
+#include "CircularMovementComponent.h"
 #include "Scene.h"
 
 #include <filesystem>
@@ -32,13 +34,15 @@ static void load()
 	{
 		auto go = std::make_unique<dae::GameObject>();
 
-		auto transform =
-			go->AddComponent<dae::TransformComponent>(go.get());
-		transform->SetPosition(0, 0);
-
 		auto tex =
 			dae::ResourceManager::GetInstance()
 			.LoadTexture("background.png");
+
+		glm::vec2 texSize = tex->GetSize();
+
+		auto transform =
+			go->AddComponent<dae::TransformComponent>(go.get());
+		transform->SetLocalPosition(0 - texSize.x/2, 0 - texSize.y / 2);
 
 		go->AddComponent<dae::RenderComponent>(go.get(),tex);
 
@@ -51,11 +55,15 @@ static void load()
 
 		auto transform =
 			go->AddComponent<dae::TransformComponent>(go.get());
-		transform->SetPosition(358, 180);
-
+		
 		auto tex =
 			dae::ResourceManager::GetInstance()
 			.LoadTexture("logo.png");
+
+		glm::vec2 texSize = tex->GetSize();
+
+		transform->SetLocalPosition(358 - texSize.x / 2, 180 - texSize.y / 2);
+
 
 		go->AddComponent<dae::RenderComponent>(go.get(), tex);
 
@@ -69,12 +77,43 @@ static void load()
 
 		auto tr =
 			fpsObj->AddComponent<dae::TransformComponent>(fpsObj.get());
-		tr->SetPosition(20, 20);
+		tr->SetLocalPosition(20, 20);
 
 		fpsObj->AddComponent<dae::TextComponent>(fpsObj.get(), "FPS", font);
 		fpsObj->AddComponent<dae::FPSComponent>(fpsObj.get());
 
 		scene.Add(std::move(fpsObj));
+	}
+
+
+	// Parent object
+	{
+		auto parent = std::make_unique<dae::GameObject>();
+		auto parentTr = parent->AddComponent<dae::TransformComponent>(parent.get());
+		parentTr->SetLocalPosition(512.f, 288.f);
+		parentTr->SetLocalScale(0.05f, 0.05f);
+
+		parent->AddComponent<dae::RenderComponent>(parent.get(),
+			dae::ResourceManager::GetInstance().LoadTexture("pacman.png"));
+
+		parent->AddComponent<dae::CircularMovementComponent>(parent.get(),100.f, 1.f);
+
+		// Child object
+		auto child = std::make_unique<dae::GameObject>();
+		auto childTr = child->AddComponent<dae::TransformComponent>(child.get());
+		childTr->SetLocalPosition(150.f, 0.f);
+
+		child->AddComponent<dae::RenderComponent>(child.get(),
+			dae::ResourceManager::GetInstance().LoadTexture("Pacman.png"));
+
+		child->AddComponent<dae::CircularMovementComponent>(child.get(),50.f, -2.f);
+
+		// Attach child
+		child->SetParent(parent.get());
+
+		// Add to scene
+		scene.Add(std::move(parent));
+		scene.Add(std::move(child));
 	}
 
 }

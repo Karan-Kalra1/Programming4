@@ -10,17 +10,31 @@ namespace dae
 
 		TransformComponent(GameObject* owner) :Component::Component(owner) {}
 
-		void SetPosition(float x, float y, float z = 0.f)
-		{
-			m_position = { x,y,z };
-		}
+        void SetLocalPosition(glm::vec3 localPosition);
 
-		const glm::vec3& GetPosition() const
-		{
-			return m_position;
-		}
+        void SetLocalPosition(float x, float y, float z = 0.f);
 
-	private:
-		glm::vec3 m_position{};
+        const glm::vec3& GetLocalPosition() const { return m_localPosition; }
+
+        const glm::vec3& GetWorldPosition();
+
+
+        void SetLocalScale(float x, float y, float z = 1.f);
+        const glm::vec3& GetLocalScale() const { return m_localScale; }
+        const glm::vec3& GetWorldScale();
+
+
+    private:
+        void UpdateWorldTransform();
+        void SetDirty();
+
+        glm::vec3 m_localPosition{};
+        glm::vec3 m_worldPosition{};
+
+        glm::vec3 m_localScale{ 1.f,1.f,1.f };
+        glm::vec3 m_worldScale{ 1.f,1.f,1.f };
+
+
+        bool m_isDirty{ true };
 	};
 }

@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <memory>
-#include "Transform.h"
+#include "TransformComponent.h"
 #include "Component.h"
 
 namespace dae
@@ -26,6 +26,13 @@ namespace dae
 
 		bool GetMarkForDelete() { return m_markForDelete; }
 
+		void SetParent(GameObject* parent, bool keepWorldPosition = true);
+		GameObject* GetParent() const { return m_parent; }
+
+		size_t GetChildCount() const { return m_children.size(); }
+		GameObject* GetChildAt(size_t index) const { return m_children[index]; }
+
+
 		template<typename T, typename... Args>
 		T* AddComponent(Args&&... args);
 
@@ -41,7 +48,12 @@ namespace dae
 	private:
 		std::vector<std::unique_ptr<Component>> m_components;
 		bool m_markForDelete{ false };
+		GameObject* m_parent{};
+		std::vector<GameObject*> m_children;
 
+		void AddChild(GameObject* child);
+		void RemoveChild(GameObject* child);
+		bool IsChild(GameObject* object) const;
 	};
 }
 
