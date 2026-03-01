@@ -13,9 +13,8 @@ namespace dae
         // UI state
         int m_samples{ 100 };
         int m_bufferSize{ 200000 }; 
-        bool m_hasData{ false };
-
-        
+     
+       
         std::vector<int> m_steps;
 
         // Timings in microseconds (averaged per step)
