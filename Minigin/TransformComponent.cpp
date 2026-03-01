@@ -25,9 +25,6 @@ void dae::TransformComponent::SetLocalScale(float x, float y, float z)
 void dae::TransformComponent::SetDirty()
 {
     
-        if (m_isDirty)
-            return;   
-
         m_isDirty = true;
 
         for (size_t i = 0; i < GetOwner()->GetChildCount(); ++i)

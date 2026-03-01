@@ -10,8 +10,7 @@ void dae::GameObject::Update()
 	for (auto& component : m_components)
 		component->Update();
 
-	for (auto child : m_children)
-		child->Update();
+	
 }
 
 void dae::GameObject::Render() const
@@ -19,8 +18,6 @@ void dae::GameObject::Render() const
 	for (const auto& component : m_components)
 		component->Render();
 
-	for (auto child : m_children)
-		child->Render();
 }
 
 
@@ -30,12 +27,18 @@ void dae::GameObject::SetParent(GameObject* newParent, bool keepWorldPosition)
         return;
 
     auto transform = GetComponent<TransformComponent>();
+    glm::vec3 worldPos = transform->GetWorldPosition();
 
-    if (keepWorldPosition && transform)
+    if (newParent == nullptr)
     {
-        glm::vec3 worldPos = transform->GetWorldPosition();
+        
+        transform->SetLocalPosition(worldPos);
+    }
 
-        if (newParent)
+    else
+    {
+        
+        if (keepWorldPosition)
         {
             glm::vec3 parentWorld =
                 newParent->GetComponent<TransformComponent>()->GetWorldPosition();
@@ -43,8 +46,9 @@ void dae::GameObject::SetParent(GameObject* newParent, bool keepWorldPosition)
         }
         else
         {
-            transform->SetLocalPosition(worldPos);
+            transform->SetDirty();
         }
+
     }
 
     if (m_parent)

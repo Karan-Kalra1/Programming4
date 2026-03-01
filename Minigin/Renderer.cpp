@@ -66,8 +66,8 @@ void dae::Renderer::RenderTexture(const Texture2D& texture,
 
 	SDL_GetTextureSize(texture.GetSDLTexture(), &texW, &texH);
 
-	dst.x = x + texW / 2;
-	dst.y = y + texH / 2;
+	dst.x = x;
+	dst.y = y;
 	dst.w = texW * scaleX;
 	dst.h = texH * scaleY;
 

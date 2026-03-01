@@ -38,11 +38,11 @@ static void load()
 			dae::ResourceManager::GetInstance()
 			.LoadTexture("background.png");
 
-		glm::vec2 texSize = tex->GetSize();
+		
 
 		auto transform =
 			go->AddComponent<dae::TransformComponent>(go.get());
-		transform->SetLocalPosition(0 - texSize.x/2, 0 - texSize.y / 2);
+		transform->SetLocalPosition(0, 0);
 
 		go->AddComponent<dae::RenderComponent>(go.get(),tex);
 
@@ -60,9 +60,9 @@ static void load()
 			dae::ResourceManager::GetInstance()
 			.LoadTexture("logo.png");
 
-		glm::vec2 texSize = tex->GetSize();
+		
 
-		transform->SetLocalPosition(358 - texSize.x / 2, 180 - texSize.y / 2);
+		transform->SetLocalPosition(358, 180);
 
 
 		go->AddComponent<dae::RenderComponent>(go.get(), tex);
@@ -88,15 +88,22 @@ static void load()
 
 	// Parent object
 	{
+
+		auto position  = std::make_unique<dae::GameObject>();
+		auto positionTr = position->AddComponent<dae::TransformComponent>(position.get());
+		positionTr->SetLocalPosition(512.f, 288.f);
+		
+
 		auto parent = std::make_unique<dae::GameObject>();
 		auto parentTr = parent->AddComponent<dae::TransformComponent>(parent.get());
-		parentTr->SetLocalPosition(512.f, 288.f);
+		parentTr->SetLocalPosition(0, 0);
 		parentTr->SetLocalScale(0.05f, 0.05f);
+		parent->SetParent(position.get());
 
 		parent->AddComponent<dae::RenderComponent>(parent.get(),
 			dae::ResourceManager::GetInstance().LoadTexture("pacman.png"));
 
-		parent->AddComponent<dae::CircularMovementComponent>(parent.get(),100.f, 1.f);
+		parent->AddComponent<dae::CircularMovementComponent>(parent.get(),50.f, 5.f);
 
 		// Child object
 		auto child = std::make_unique<dae::GameObject>();
@@ -106,12 +113,13 @@ static void load()
 		child->AddComponent<dae::RenderComponent>(child.get(),
 			dae::ResourceManager::GetInstance().LoadTexture("Pacman.png"));
 
-		child->AddComponent<dae::CircularMovementComponent>(child.get(),50.f, -2.f);
+		child->AddComponent<dae::CircularMovementComponent>(child.get(),50.f, -10.f);
 
 		// Attach child
 		child->SetParent(parent.get());
 
 		// Add to scene
+		scene.Add(std::move(position));
 		scene.Add(std::move(parent));
 		scene.Add(std::move(child));
 	}
