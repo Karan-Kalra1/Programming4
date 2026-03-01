@@ -4,6 +4,7 @@
 #include "Renderer.h"
 #include "SceneManager.h"
 #include "Texture2D.h"
+#include "CacheTrashWindow.h"
 
 #include <imgui.h>
 #include <backends/imgui_impl_sdl3.h>
@@ -41,7 +42,8 @@ void dae::Renderer::Render() const
 	ImGui_ImplSDL3_NewFrame();
 	ImGui::NewFrame();
 
-	ImGui::ShowDemoWindow(); // For demonstration purposes, do not keep this in your engine
+	static CacheTrashWindow g_cacheWindow;
+	g_cacheWindow.DrawImGui(); 
 
 	ImGui::Render();
 
