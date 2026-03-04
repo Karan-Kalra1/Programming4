@@ -1,7 +1,5 @@
 #include "CacheTrashWindow.h"
-
 #include <algorithm>
-#include <chrono>
 #include <numeric>
 #include <memory>
 
@@ -40,13 +38,7 @@ struct GameObject3DAlt
 };
 
 // ------------------ Helpers ------------------
-static std::vector<int> MakeSteps()
-{
-    std::vector<int> s;
-    for (int step = 1; step <= 1024; step *= 2)
-        s.push_back(step);
-    return s;
-}
+
 
 float dae::CacheTrashWindow::AverageNoOutliers(std::vector<float>& samples)
 {
@@ -67,29 +59,14 @@ float dae::CacheTrashWindow::AverageNoOutliers(std::vector<float>& samples)
 
 float dae::CacheTrashWindow::RunExercise1Once(int bufferSize, int step)
 {
-    // ints
-    auto arr = std::make_unique<int[]>(bufferSize);
-
-    const auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < bufferSize; i += step)
-        arr[i] *= 2;
-    const auto end = std::chrono::high_resolution_clock::now();
-
-    const auto us = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    return static_cast<float>(us);
+    return RunBenchmark<int>(bufferSize, step,
+        [](int& v) -> int& { return v; });
 }
 
 float dae::CacheTrashWindow::RunExercise2Once(int bufferSize, int step)
 {
-    auto arr = std::make_unique<GameObject3D[]>(bufferSize);
-
-    const auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < bufferSize; i += step)
-        arr[i].ID *= 2;
-    const auto end = std::chrono::high_resolution_clock::now();
-
-    const auto us = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    return static_cast<float>(us);
+    return RunBenchmark<GameObject3D>(bufferSize, step,
+        [](GameObject3D& obj) -> int& { return obj.ID; });
 }
 
 float dae::CacheTrashWindow::RunExercise2AltOnce(int bufferSize, int step)
@@ -163,64 +140,28 @@ void dae::CacheTrashWindow::PlotCombined(const char* label,
 
 void dae::CacheTrashWindow::RunExercise1()
 {
-    m_steps = MakeSteps();
-    m_ex1_us.assign(m_steps.size(), 0.0f);
-
-    for (size_t si = 0; si < m_steps.size(); ++si)
-    {
-        const int step = m_steps[si];
-
-        std::vector<float> samples;
-        samples.reserve(m_samples);
-
-        for (int k = 0; k < m_samples; ++k)
-            samples.push_back(RunExercise1Once(m_bufferSize, step));
-
-        m_ex1_us[si] = AverageNoOutliers(samples);
-    }
-
+    RunGeneric(m_ex1_us, [](int bufferSize, int step)
+        {
+            return RunExercise1Once(bufferSize, step);
+        });
     m_hasEx1 = true;
 }
 
 void dae::CacheTrashWindow::RunExercise2()
 {
-    m_steps = MakeSteps();
-    m_ex2_us.assign(m_steps.size(), 0.0f);
-
-    for (size_t si = 0; si < m_steps.size(); ++si)
-    {
-        const int step = m_steps[si];
-
-        std::vector<float> samples;
-        samples.reserve(m_samples);
-
-        for (int k = 0; k < m_samples; ++k)
-            samples.push_back(RunExercise2Once(m_bufferSize, step));
-
-        m_ex2_us[si] = AverageNoOutliers(samples);
-    }
-
+    RunGeneric(m_ex2_us, [](int bufferSize, int step)
+        {
+            return RunExercise2Once(bufferSize, step);
+        });
     m_hasEx2 = true;
 }
 
 void dae::CacheTrashWindow::RunExercise2Alt()
 {
-    m_steps = MakeSteps();
-    m_ex2_alt_us.assign(m_steps.size(), 0.0f);
-
-    for (size_t si = 0; si < m_steps.size(); ++si)
-    {
-        const int step = m_steps[si];
-
-        std::vector<float> samples;
-        samples.reserve(m_samples);
-
-        for (int k = 0; k < m_samples; ++k)
-            samples.push_back(RunExercise2AltOnce(m_bufferSize, step));
-
-        m_ex2_alt_us[si] = AverageNoOutliers(samples);
-    }
-
+    RunGeneric(m_ex2_alt_us, [](int bufferSize, int step)
+        {
+            return RunExercise2AltOnce(bufferSize, step);
+        });
     m_hasEx2Alt = true;
 }
 
