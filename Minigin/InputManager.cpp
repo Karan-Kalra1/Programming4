@@ -6,7 +6,7 @@
 
 dae::InputManager::InputManager()
 {
-	// One controller for now, enough for the assignment
+	// One controller for now
 	m_Controllers.emplace_back(std::make_unique<Controller>(0));
 
 	m_pCurrentKeyboardState = SDL_GetKeyboardState(nullptr);
