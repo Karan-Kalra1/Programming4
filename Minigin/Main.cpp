@@ -16,6 +16,9 @@
 #include "Texture2D.h"
 #include "CircularMovementComponent.h"
 #include "Scene.h"
+#include "InputManager.h"
+#include "MoveCommand.h"
+#include "Controller.h"
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -86,42 +89,55 @@ static void load()
 	}
 
 
-	// Parent object
 	{
 
-		auto position  = std::make_unique<dae::GameObject>();
-		auto positionTr = position->AddComponent<dae::TransformComponent>(position.get());
-		positionTr->SetLocalPosition(512.f, 288.f);
 		
 
-		auto parent = std::make_unique<dae::GameObject>();
-		auto parentTr = parent->AddComponent<dae::TransformComponent>(parent.get());
-		parentTr->SetLocalPosition(0, 0);
-		parentTr->SetLocalScale(0.05f, 0.05f);
-		parent->SetParent(position.get());
+		auto mr_packman = std::make_unique<dae::GameObject>();
+		auto mr_packmanTr = mr_packman->AddComponent<dae::TransformComponent>(mr_packman.get());
+		mr_packmanTr->SetLocalPosition(350, 350);
+		mr_packmanTr->SetLocalScale(0.05f, 0.05f);
+		 
+		auto p1 = mr_packman.get();
 
-		parent->AddComponent<dae::RenderComponent>(parent.get(),
+		mr_packman->AddComponent<dae::RenderComponent>(mr_packman.get(),
 			dae::ResourceManager::GetInstance().LoadTexture("pacman.png"));
 
-		parent->AddComponent<dae::CircularMovementComponent>(parent.get(),50.f, 5.f);
 
-		// Child object
-		auto child = std::make_unique<dae::GameObject>();
-		auto childTr = child->AddComponent<dae::TransformComponent>(child.get());
-		childTr->SetLocalPosition(150.f, 0.f);
+		
+		auto ms_pack = std::make_unique<dae::GameObject>();
+		auto ms_packTr = ms_pack->AddComponent<dae::TransformComponent>(ms_pack.get());
+		ms_packTr->SetLocalPosition(250.f, 250.f);
+		ms_packTr->SetLocalScale(0.05f, 0.05f);
 
-		child->AddComponent<dae::RenderComponent>(child.get(),
+		ms_pack->AddComponent<dae::RenderComponent>(ms_pack.get(),
 			dae::ResourceManager::GetInstance().LoadTexture("Pacman.png"));
 
-		child->AddComponent<dae::CircularMovementComponent>(child.get(),50.f, -10.f);
+		auto p2 = ms_pack.get();
 
-		// Attach child
-		child->SetParent(parent.get());
+		
+		
 
 		// Add to scene
-		scene.Add(std::move(position));
-		scene.Add(std::move(parent));
-		scene.Add(std::move(child));
+		scene.Add(std::move(mr_packman));
+		scene.Add(std::move(ms_pack));
+
+		constexpr float speed1{ 100.f };
+		constexpr float speed2{ 200.f };
+
+		auto& input = dae::InputManager::GetInstance();
+
+
+		input.BindKeyboardCommand(SDL_SCANCODE_W, dae::KeyState::Pressed, std::make_unique<dae::MoveCommand>(p1, glm::vec2{ 0.f, -1.f }, speed1));
+		input.BindKeyboardCommand(SDL_SCANCODE_S, dae::KeyState::Pressed, std::make_unique<dae::MoveCommand>(p1, glm::vec2{ 0.f, 1.f }, speed1));
+		input.BindKeyboardCommand(SDL_SCANCODE_A, dae::KeyState::Pressed, std::make_unique<dae::MoveCommand>(p1, glm::vec2{ -1.f, 0.f }, speed1));
+		input.BindKeyboardCommand(SDL_SCANCODE_D, dae::KeyState::Pressed, std::make_unique<dae::MoveCommand>(p1, glm::vec2{ 1.f, 0.f }, speed1));
+
+		input.BindControllerCommand(0, dae::ControllerButton::DPadUp, dae::KeyState::Pressed, std::make_unique<dae::MoveCommand>(p2, glm::vec2{ 0.f, -1.f }, speed2));
+		input.BindControllerCommand(0, dae::ControllerButton::DPadDown, dae::KeyState::Pressed, std::make_unique<dae::MoveCommand>(p2, glm::vec2{ 0.f, 1.f }, speed2));
+		input.BindControllerCommand(0, dae::ControllerButton::DPadLeft, dae::KeyState::Pressed, std::make_unique<dae::MoveCommand>(p2, glm::vec2{ -1.f, 0.f }, speed2));
+		input.BindControllerCommand(0, dae::ControllerButton::DPadRight, dae::KeyState::Pressed, std::make_unique<dae::MoveCommand>(p2, glm::vec2{ 1.f, 0.f }, speed2));
+
 	}
 
 }

@@ -38,14 +38,14 @@ void dae::Renderer::Init(SDL_Window* window)
 
 void dae::Renderer::Render() const
 {
-	ImGui_ImplSDLRenderer3_NewFrame();
-	ImGui_ImplSDL3_NewFrame();
-	ImGui::NewFrame();
+	//ImGui_ImplSDLRenderer3_NewFrame();
+	//ImGui_ImplSDL3_NewFrame();
+	//ImGui::NewFrame();
 
-	static CacheTrashWindow g_cacheWindow;
-	g_cacheWindow.DrawImGui(); 
+	//static CacheTrashWindow g_cacheWindow;
+	//g_cacheWindow.DrawImGui(); 
 
-	ImGui::Render();
+	//ImGui::Render();
 
 	const auto& color = GetBackgroundColor();
 	SDL_SetRenderDrawColor(m_renderer, color.r, color.g, color.b, color.a);
@@ -53,7 +53,7 @@ void dae::Renderer::Render() const
 
 	SceneManager::GetInstance().Render();
 
-	ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), m_renderer);
+	//ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), m_renderer);
 	SDL_RenderPresent(m_renderer);
 }
 
