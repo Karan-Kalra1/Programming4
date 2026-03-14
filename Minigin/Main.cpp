@@ -150,8 +150,7 @@ static void load()
 		dae::TextComponent* p1ScoreText{};
 		dae::TextComponent* p2LivesText{};
 		dae::TextComponent* p2ScoreText{};
-		dae::TextComponent* p1controls{};
-		dae::TextComponent* p2controls{};
+		
 
 		{
 			auto ui = std::make_unique<dae::GameObject>();
@@ -168,7 +167,7 @@ static void load()
 			auto* uiObj = ui.get();
 
 			ui->AddComponent<dae::TransformComponent>(uiObj)->SetLocalPosition(20.f, 70.f);
-			p1controls = ui->AddComponent<dae::TextComponent>(uiObj, "Player 1 - WASD to Move, Q to lose Life, E to Add score", font2);
+			ui->AddComponent<dae::TextComponent>(uiObj, "Player 1 - WASD to Move, Q to lose Life, E to Add score", font2);
 
 			scene.Add(std::move(ui));
 		}
@@ -178,7 +177,7 @@ static void load()
 			auto* uiObj = ui.get();
 
 			ui->AddComponent<dae::TransformComponent>(uiObj)->SetLocalPosition(20.f, 110.f);
-			p2controls = ui->AddComponent<dae::TextComponent>(uiObj, "Player 2 - D-Pad to Move, A to lose Life, B to Add score", font2);
+			ui->AddComponent<dae::TextComponent>(uiObj, "Player 2 - D-Pad to Move, A to lose Life, B to Add score", font2);
 
 			scene.Add(std::move(ui));
 		}
