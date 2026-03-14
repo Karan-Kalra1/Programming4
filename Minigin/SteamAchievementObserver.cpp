@@ -1,6 +1,9 @@
 #include "SteamAchievementObserver.h"
 #include "GameActorComponent.h"
+
+#if USE_STEAMWORKS
 #include <steam_api.h>
+#endif
 
 dae::SteamAchievementObserver::SteamAchievementObserver(GameActorComponent* actor)
 	: m_pActor(actor)
