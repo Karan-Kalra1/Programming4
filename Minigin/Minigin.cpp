@@ -114,10 +114,10 @@ void dae::Minigin::Run(const std::function<void()>& load)
 	SteamAPI_RunCallbacks();
 #endif 
 
-	load();
-
 	m_lastTime = clocking::now();
 
+	load();
+	
 #ifndef __EMSCRIPTEN__
 	while (!m_quit)
 		RunOneFrame();
