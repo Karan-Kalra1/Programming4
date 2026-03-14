@@ -19,8 +19,10 @@ namespace dae
 		Minigin& operator=(const Minigin& other) = delete;
 		Minigin& operator=(Minigin&& other) = delete;
 
+		
 
 	private:
 		std::chrono::high_resolution_clock::time_point m_lastTime{};
+		
 	};
 }

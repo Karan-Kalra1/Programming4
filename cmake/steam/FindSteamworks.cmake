@@ -20,7 +20,7 @@ include(FindPackageHandleStandardArgs)
 # ------------------------------------------------------------
 
 set(STEAMWORKS_ROOT "" CACHE PATH
-    "Path to Steamworks SDK root (steamworks_sdk_###)"
+    "-DSTEAMWORKS_ROOT=C:/GitHub/Programming4/steamworks_sdk_163"
 )
 
 # ------------------------------------------------------------
