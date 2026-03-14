@@ -29,11 +29,14 @@ void dae::SteamAchievementObserver::OnNotify(const Event& event)
 
 	if (event.type == EventType::ScoreChanged && m_pActor->GetScore() >= 500)
 	{
+#if USE_STEAMWORKS
 		if (SteamUserStats())
 		{
 			SteamUserStats()->SetAchievement("ACH_WIN_ONE_GAME");
 			SteamUserStats()->StoreStats();
 			m_Unlocked = true;
 		}
+#endif
+
 	}
 }
