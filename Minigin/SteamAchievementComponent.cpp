@@ -23,11 +23,11 @@ void dae::SteamAchievementComponent::OnNotify(const Event& event)
 	if (!m_pActor || event.actor != m_pActor->GetOwner())
 		return;
 
-#if USE_STEAMWORKS
+
 	if (!m_HasCheckedInitialState)
 	{
 		m_HasCheckedInitialState = true;
-
+#if USE_STEAMWORKS
 		if (SteamUserStats())
 		{
 			bool achieved = false;
@@ -36,6 +36,8 @@ void dae::SteamAchievementComponent::OnNotify(const Event& event)
 				m_AlreadyUnlocked = achieved;
 			}
 		}
+#endif
+
 	}
 
 	if (m_AlreadyUnlocked)
@@ -43,6 +45,8 @@ void dae::SteamAchievementComponent::OnNotify(const Event& event)
 
 	if (event.type == EventType::ScoreChanged && m_pActor->GetScore() >= 500)
 	{
+#if USE_STEAMWORKS
+
 		if (SteamUserStats())
 		{
 			bool achieved = false;
@@ -52,11 +56,12 @@ void dae::SteamAchievementComponent::OnNotify(const Event& event)
 				SteamUserStats()->StoreStats();
 				m_AlreadyUnlocked = true;
 			}
-			else if (achieved)
+			else if(achieved)
 			{
 				m_AlreadyUnlocked = true;
 			}
 		}
-	}
 #endif
+	}
+
 }
