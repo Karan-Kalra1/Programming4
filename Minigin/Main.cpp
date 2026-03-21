@@ -121,7 +121,7 @@ static void load()
 		auto* p1Actor = mr_packman->AddComponent<dae::GameActorComponent>(p1, 3, 0, 1);
 
 		mr_packman->AddComponent<dae::RenderComponent>(mr_packman.get(),
-			dae::ResourceManager::GetInstance().LoadTexture("pacman.png"));
+			dae::ResourceManager::GetInstance().LoadTexture("Pacman.png"));
 
 		dae::EventBus::GetInstance().GetSubject().AddObserver(p1Actor);
 
