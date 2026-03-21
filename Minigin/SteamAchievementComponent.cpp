@@ -19,10 +19,11 @@ dae::SteamAchievementComponent::SteamAchievementComponent(GameObject* owner, Gam
 
 void dae::SteamAchievementComponent::OnNotify(const Event& event)
 {
-#if USE_STEAMWORKS
+
 	if (!m_pActor || event.actor != m_pActor->GetOwner())
 		return;
 
+#if USE_STEAMWORKS
 	if (!m_HasCheckedInitialState)
 	{
 		m_HasCheckedInitialState = true;
