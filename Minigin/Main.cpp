@@ -22,21 +22,18 @@
 #include "MoveCommand.h"
 #include "Controller.h"
 #include "GameActorComponent.h"
-#include "LivesDisplayObserver.h"
+#include "LivesDisplayComponent.h"
 #include "LoseLifeCommand.h"
-#include "ScoreDisplayObserver.h"
+#include "ScoreDisplayComponent.h"
 #include "AddScoreCommand.h"
-#include "SteamAchievementObserver.h"
+#include "EventBus.h"
+#include "SteamAchievementComponent.h"
 
 #include <filesystem>
 namespace fs = std::filesystem;
 
 
-static std::unique_ptr<dae::LivesDisplayObserver> g_P1LivesObserver;
-static std::unique_ptr<dae::ScoreDisplayObserver> g_P1ScoreObserver;
-static std::unique_ptr<dae::LivesDisplayObserver> g_P2LivesObserver;
-static std::unique_ptr<dae::ScoreDisplayObserver> g_P2ScoreObserver;
-static std::unique_ptr<dae::SteamAchievementObserver> g_SteamObserver;
+
 
 
 static void load()
@@ -126,6 +123,8 @@ static void load()
 		mr_packman->AddComponent<dae::RenderComponent>(mr_packman.get(),
 			dae::ResourceManager::GetInstance().LoadTexture("pacman.png"));
 
+		dae::EventBus::GetInstance().GetSubject().AddObserver(p1Actor);
+
 
 		
 		auto ms_pack = std::make_unique<dae::GameObject>();
@@ -140,25 +139,21 @@ static void load()
 		auto p2 = ms_pack.get();
 
 		auto* p2Actor = ms_pack->AddComponent<dae::GameActorComponent>(p2, 3, 0, 2);
+
+		dae::EventBus::GetInstance().GetSubject().AddObserver(p2Actor);
 		
 		// Add to scene
 		scene.Add(std::move(mr_packman));
 		scene.Add(std::move(ms_pack));
-
-
-		dae::TextComponent* p1LivesText{};
-		dae::TextComponent* p1ScoreText{};
-		dae::TextComponent* p2LivesText{};
-		dae::TextComponent* p2ScoreText{};
-		
+	
 
 		{
 			auto ui = std::make_unique<dae::GameObject>();
 			auto* uiObj = ui.get();
 
 			ui->AddComponent<dae::TransformComponent>(uiObj)->SetLocalPosition(720.f, 50.f);
-			p1LivesText = ui->AddComponent<dae::TextComponent>(uiObj, "Lives P1: 3", font);
-
+			ui->AddComponent<dae::TextComponent>(uiObj, "Lives P1: 3", font);
+			ui->AddComponent<dae::LivesDisplayComponent>(uiObj, p1Actor, "Lives P1: ");
 			scene.Add(std::move(ui));
 		}
 
@@ -187,8 +182,8 @@ static void load()
 			auto* uiObj = ui.get();
 
 			ui->AddComponent<dae::TransformComponent>(uiObj)->SetLocalPosition(720.f, 80.f);
-			p1ScoreText = ui->AddComponent<dae::TextComponent>(uiObj, "Score P1: 0", font);
-
+			ui->AddComponent<dae::TextComponent>(uiObj, "Score P1: 0", font);
+			ui->AddComponent<dae::ScoreDisplayComponent>(uiObj, p1Actor, "Score P1: ");
 			scene.Add(std::move(ui));
 		}
 
@@ -197,8 +192,8 @@ static void load()
 			auto* uiObj = ui.get();
 
 			ui->AddComponent<dae::TransformComponent>(uiObj)->SetLocalPosition(720.f, 120.f);
-			p2LivesText = ui->AddComponent<dae::TextComponent>(uiObj, "Lives P2: 3", font);
-
+			ui->AddComponent<dae::TextComponent>(uiObj, "Lives P2: 3", font);
+			ui->AddComponent<dae::LivesDisplayComponent>(uiObj, p2Actor, "Lives P2: ");
 			scene.Add(std::move(ui));
 		}
 
@@ -207,27 +202,18 @@ static void load()
 			auto* uiObj = ui.get();
 
 			ui->AddComponent<dae::TransformComponent>(uiObj)->SetLocalPosition(720.f, 150.f);
-			p2ScoreText = ui->AddComponent<dae::TextComponent>(uiObj, "Score P2: 0", font);
-
+			ui->AddComponent<dae::TextComponent>(uiObj, "Score P2: 0", font);
+			ui->AddComponent<dae::ScoreDisplayComponent>(uiObj, p2Actor, "Score P2: ");
 			scene.Add(std::move(ui));
 		}
-
-		// Observers
-		g_P1LivesObserver = std::make_unique<dae::LivesDisplayObserver>(p1Actor, p1LivesText, "Lives P1: ");
-		g_P1LivesObserver->StartListening();
-
-		g_P1ScoreObserver = std::make_unique<dae::ScoreDisplayObserver>(p1Actor, p1ScoreText, "Score P1: ");
-		g_P1ScoreObserver->StartListening();
-
-		g_P2LivesObserver = std::make_unique<dae::LivesDisplayObserver>(p2Actor, p2LivesText, "Lives P2: ");
-		g_P2LivesObserver->StartListening();
-
-		g_P2ScoreObserver = std::make_unique<dae::ScoreDisplayObserver>(p2Actor, p2ScoreText, "Score P2: ");
-		g_P2ScoreObserver->StartListening();
-
-		g_SteamObserver = std::make_unique<dae::SteamAchievementObserver>(p1Actor);
-		g_SteamObserver->StartListening();
-
+	
+		// Steam observer component on a dummy
+		{
+			auto steamGo = std::make_unique<dae::GameObject>();
+			auto* steamObj = steamGo.get();
+			steamGo->AddComponent<dae::SteamAchievementComponent>(steamObj, p1Actor);
+			scene.Add(std::move(steamGo));
+		}
 
 		constexpr float speed1{ 100.f };
 		constexpr float speed2{ 200.f };
@@ -247,14 +233,14 @@ static void load()
 
 
 		input.BindKeyboardCommand(SDL_SCANCODE_Q, dae::KeyState::Down,
-			std::make_unique<dae::LoseLifeCommand>(p1Actor));
+			std::make_unique<dae::LoseLifeCommand>(p1,1));
 		input.BindKeyboardCommand(SDL_SCANCODE_E, dae::KeyState::Down,
-			std::make_unique<dae::AddScoreCommand>(p1Actor, 100));
+			std::make_unique<dae::AddScoreCommand>(p1, 100));
 
 		input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,
-			std::make_unique<dae::LoseLifeCommand>(p2Actor));
+			std::make_unique<dae::LoseLifeCommand>(p2,1));
 		input.BindControllerCommand(0, dae::ControllerButton::ButtonB, dae::KeyState::Down,
-			std::make_unique<dae::AddScoreCommand>(p2Actor, 100));
+			std::make_unique<dae::AddScoreCommand>(p2, 100));
 
 	}
 

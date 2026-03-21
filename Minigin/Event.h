@@ -6,6 +6,11 @@ namespace dae
 
 	enum class EventType
 	{
+		// intent/request events
+		DamageRequested,
+		ScoreRequested,
+
+		// result/state events
 		PlayerDied,
 		LivesChanged,
 		ScoreChanged
@@ -15,6 +20,6 @@ namespace dae
 	{
 		EventType type{};
 		GameObject* actor{};
-		int value{}; // lives or score depending on event
+		int value{};
 	};
 }

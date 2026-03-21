@@ -3,18 +3,20 @@
 
 namespace dae
 {
-	class GameActorComponent;
+	class GameObject;
 
 	class LoseLifeCommand final : public Command
 	{
 	public:
-		explicit LoseLifeCommand(GameActorComponent* actor)
-			: m_pActor(actor) {
+		LoseLifeCommand(GameObject* actor, int amount = 1)
+			: m_pActor(actor)
+			, m_Amount(amount) {
 		}
 
 		void Execute() override;
 
 	private:
-		GameActorComponent* m_pActor{};
+		GameObject* m_pActor{};
+		int m_Amount{};
 	};
 }

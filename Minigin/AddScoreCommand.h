@@ -3,12 +3,12 @@
 
 namespace dae
 {
-	class GameActorComponent;
+	class GameObject;
 
 	class AddScoreCommand final : public Command
 	{
 	public:
-		AddScoreCommand(GameActorComponent* actor, int amount)
+		AddScoreCommand(GameObject* actor, int amount)
 			: m_pActor(actor)
 			, m_Amount(amount) {
 		}
@@ -16,7 +16,7 @@ namespace dae
 		void Execute() override;
 
 	private:
-		GameActorComponent* m_pActor{};
+		GameObject* m_pActor{};
 		int m_Amount{};
 	};
 }

@@ -10,9 +10,29 @@ dae::GameActorComponent::GameActorComponent(GameObject* owner, int lives, int sc
 {
 }
 
-void dae::GameActorComponent::LoseLife()
+void dae::GameActorComponent::OnNotify(const Event& event)
 {
-	--m_Lives;
+	if (event.actor != GetOwner())
+		return;
+
+	switch (event.type)
+	{
+	case EventType::DamageRequested:
+		LoseLife(event.value);
+		break;
+
+	case EventType::ScoreRequested:
+		AddScore(event.value);
+		break;
+
+	default:
+		break;
+	}
+}
+
+void dae::GameActorComponent::LoseLife(int amount)
+{
+	m_Lives -= amount;
 	if (m_Lives < 0)
 		m_Lives = 0;
 
@@ -27,29 +47,6 @@ void dae::GameActorComponent::LoseLife()
 void dae::GameActorComponent::AddScore(int amount)
 {
 	m_Score += amount;
-	if (m_Score < 0)
-		m_Score = 0;
-
-	m_Subject.Notify(Event{ EventType::ScoreChanged, GetOwner(), m_Score });
-}
-
-void dae::GameActorComponent::SetLives(int lives)
-{
-	m_Lives = lives;
-	if (m_Lives < 0)
-		m_Lives = 0;
-
-	m_Subject.Notify(Event{ EventType::LivesChanged, GetOwner(), m_Lives });
-
-	if (m_Lives == 0)
-	{
-		m_Subject.Notify(Event{ EventType::PlayerDied, GetOwner(), 0 });
-	}
-}
-
-void dae::GameActorComponent::SetScore(int score)
-{
-	m_Score = score;
 	if (m_Score < 0)
 		m_Score = 0;
 
