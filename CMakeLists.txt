@@ -1,40 +1,20 @@
 cmake_minimum_required(VERSION 3.26)
-project(Minigin)
+project(Programming4)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(EMSCRIPTEN)
   message("Using Emscripten!")
 endif()
 
-if(EMSCRIPTEN)
-  set(TARGET_NAME minigin_web)
-  set(TARGET_PARAM )
-else()
-  set(TARGET_NAME minigin)
-  set(TARGET_PARAM WIN32)
-endif()
-
-
-# list source files here
-add_executable(${TARGET_NAME} ${TARGET_PARAM}
-  Minigin/Font.cpp
-  Minigin/GameObject.cpp
-  Minigin/InputManager.cpp
-  Minigin/Main.cpp
-  Minigin/Minigin.cpp
-  Minigin/Renderer.cpp
-  Minigin/ResourceManager.cpp
-  Minigin/Scene.cpp
-  Minigin/SceneManager.cpp
-  
-  Minigin/Texture2D.cpp
-  Minigin/Transform.cpp
- "Minigin/TransformComponent.h" "Minigin/RenderComponent.h" "Minigin/RenderComponent.cpp" "Minigin/TextComponent.h" "Minigin/TextComponent.cpp" "Minigin/MiniginTime.h" "Minigin/Component.h" "Minigin/GameObjectTemplate.h" "Minigin/FPSComponent.h" "Minigin/TransformComponent.cpp" "Minigin/CircularMovementComponent.h" "Minigin/CircularMovementComponent.cpp" "Minigin/CacheTrashWindow.h" "Minigin/CacheTrashWindow.cpp" "Minigin/Command.h" "Minigin/InputTypes.h" "Minigin/Controller.h" "Minigin/Controller.cpp"  "Minigin/MoveCommand.cpp" "Minigin/MoveCommand.h"   "Minigin/Observer.h" "Minigin/Event.h" "Minigin/Subject.h" "Minigin/GameActorComponent.h" "Minigin/GameActorComponent.cpp"  "Minigin/LoseLifeCommand.h" "Minigin/LoseLifeCommand.cpp" "Minigin/AddScoreCommand.h" "Minigin/AddScoreCommand.cpp" "Minigin/EventBus.h" "Minigin/LivesDisplayComponent.h" "Minigin/LivesDisplayComponent.cpp" "Minigin/ScoreDisplayComponent.h" "Minigin/ScoreDisplayComponent.cpp" "Minigin/SteamAchievementComponent.h" "Minigin/SteamAchievementComponent.cpp")
-
-# enable c++20 features
-target_compile_features(${TARGET_NAME} PUBLIC cxx_std_20)
-
 include(FetchContent)
-# add glm
+
+# =========================
+# Dependencies
+# =========================
+
+# GLM
 find_package(glm CONFIG QUIET)
 if(NOT glm_FOUND)
   FetchContent_Declare(
@@ -46,10 +26,10 @@ if(NOT glm_FOUND)
   FetchContent_MakeAvailable(glm)
 endif()
 
-# Add SDL3
+# SDL3
 find_package(SDL3 3.4 CONFIG QUIET)
 if(NOT SDL3_FOUND)
-  if (WIN32)
+  if(WIN32)
     FetchContent_Declare(
       SDL3
       URL https://www.libsdl.org/release/SDL3-devel-3.4.0-VC.zip
@@ -71,10 +51,10 @@ if(NOT SDL3_FOUND)
   endif()
 endif()
 
-# Add SDL3_ttf
+# SDL3_ttf
 find_package(SDL3_ttf 3.2.2 CONFIG QUIET)
 if(NOT SDL3_ttf_FOUND)
-  if (WIN32)
+  if(WIN32)
     FetchContent_Declare(
       SDL3_ttf
       URL https://www.libsdl.org/projects/SDL_ttf/release/SDL3_ttf-devel-3.2.2-VC.zip
@@ -92,7 +72,9 @@ if(NOT SDL3_ttf_FOUND)
       GIT_SHALLOW TRUE
       GIT_PROGRESS TRUE
     )
+
     set(SDL3TTF_INSTALL OFF)
+
     if(EMSCRIPTEN)
       list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/emscripten")
       set(SDL3TTF_USE_SYSTEM_FREETYPE ON)
@@ -101,150 +83,27 @@ if(NOT SDL3_ttf_FOUND)
       add_compile_options(-sUSE_FREETYPE=1 -sUSE_HARFBUZZ=1)
       add_link_options(-sUSE_FREETYPE=1 -sUSE_HARFBUZZ=1)
     endif()
+
     FetchContent_MakeAvailable(SDL3_ttf)
   endif()
 endif()
 
-if (WIN32)
-  # Add VLD (Visual Leak Detector) for memory leak detection on Windows
+if(WIN32)
   find_package(VLD CONFIG)
 endif()
 
-# Add steam if available
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/steam")
-find_package(Steamworks QUIET)
 
-target_include_directories("${TARGET_NAME}" PUBLIC
-  ${CMAKE_SOURCE_DIR}/Minigin/
-  ${VLD_INCLUDE_DIR}
-)
+# =========================
+# ImGui
+# =========================
 
-target_link_libraries("${TARGET_NAME}" PUBLIC
-  SDL3::SDL3
-  SDL3_ttf::SDL3_ttf
-  glm::glm
-  ${VLD_LIBRARIES}
-)
-
-if(MSVC)
-  # compile at warning level 4 + treat warnings as errors
-  target_compile_options(${TARGET_NAME} PRIVATE /W4 /WX)
-else()
-  target_compile_options(${TARGET_NAME} PRIVATE -Wall -Wextra -Werror)
-endif()
-
-if(EMSCRIPTEN)
-  set(EMSCRIPTEN_COMPILE_FLAGS "${EMSCRIPTEN_LINK_FLAGS} -g")
-  set(EMSCRIPTEN_LINK_FLAGS "${EMSCRIPTEN_LINK_FLAGS} -sUSE_FREETYPE=1 -sUSE_HARFBUZZ=1 -g -sALLOW_MEMORY_GROWTH --preload-file \"${CMAKE_SOURCE_DIR}/Data@/\"")
-
-  # Use the Emscripten toolchain
-  set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmscriptenToolchain.cmake)
-
-  # Additional settings for Emscripten build
-  set_target_properties(${TARGET_NAME} PROPERTIES
-      COMPILE_FLAGS "${EMSCRIPTEN_COMPILE_FLAGS}"
-      LINK_FLAGS "${EMSCRIPTEN_LINK_FLAGS}"
-  )
-
-  add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/web" "$<TARGET_FILE_DIR:${TARGET_NAME}>/"
-  )
-
-  # Have emscripten generate a html page too.
-  set(CMAKE_EXECUTABLE_SUFFIX ".html")
-
-elseif(WIN32)
-  # Set minigin as the default startup project
-  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${TARGET_NAME})
-  # Set working directory to output folder
-  set_target_properties(${TARGET_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${TARGET_NAME}>")
-
-  # Copy SDL dlls to output folder
-  set(SDL_RUNTIME_DLLS
-    SDL3::SDL3
-    SDL3_ttf::SDL3_ttf
-  )
-
-  foreach(dllTarget IN LISTS SDL_RUNTIME_DLLS)
-    add_custom_command(
-      TARGET ${TARGET_NAME} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "$<TARGET_FILE:${dllTarget}>"
-          "$<TARGET_FILE_DIR:${TARGET_NAME}>"
-      VERBATIM
-    )
-  endforeach()
-
-  if(Steamworks_FOUND)
-    target_link_libraries("${TARGET_NAME}" PUBLIC Steamworks::Steamworks)
-    target_compile_definitions(${TARGET_NAME} PRIVATE USE_STEAMWORKS)
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy "${Steamworks_RUNTIME_DLL}" "$<TARGET_FILE_DIR:${TARGET_NAME}>")
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E echo "480" > "$<TARGET_FILE_DIR:${TARGET_NAME}>/steam_appid.txt"
-      COMMENT "Generating steam_appid.txt"
-    )
-  endif()
-
-  add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/Data" "$<TARGET_FILE_DIR:${TARGET_NAME}>/Data"
-  )
-elseif(APPLE)
-  set_target_properties(${TARGET_NAME} PROPERTIES
-    MACOSX_BUNDLE TRUE
-    INSTALL_RPATH "@executable_path/../Frameworks"
-    BUILD_WITH_INSTALL_RPATH TRUE
-  )
-  add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks"
-    COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:SDL3::SDL3-shared>" "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks/"
-    COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:SDL3_ttf::SDL3_ttf-shared>" "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks/"
-    COMMAND install_name_tool -change "@rpath/libSDL3_ttf.0.dylib" "@executable_path/../Frameworks/libSDL3_ttf.0.2.2.dylib" "$<TARGET_FILE:${TARGET_NAME}>"
-    COMMAND install_name_tool -change "@rpath/libSDL3.0.dylib" "@executable_path/../Frameworks/libSDL3.0.dylib" "$<TARGET_FILE:${TARGET_NAME}>"
-  )
-
-  if(Steamworks_FOUND)
-    target_link_libraries("${TARGET_NAME}" PUBLIC Steamworks::Steamworks)
-    target_compile_definitions(${TARGET_NAME} PRIVATE USE_STEAMWORKS)
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${Steamworks_LIBRARIES}" "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Frameworks/"
-    )
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E echo "480" > "$<TARGET_FILE_DIR:${TARGET_NAME}>/steam_appid.txt"
-      COMMENT "Generating steam_appid.txt"
-    )
-  endif()
-
-  # Copy Data folder to output directory after build
-  add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/Data" "$<TARGET_FILE_DIR:${TARGET_NAME}>/Data"
-  )
-else()
- if(Steamworks_FOUND)
-    target_link_libraries("${TARGET_NAME}" PUBLIC Steamworks::Steamworks)
-    target_compile_definitions(${TARGET_NAME} PRIVATE USE_STEAMWORKS)
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${Steamworks_LIBRARIES}" "$<TARGET_FILE_DIR:${TARGET_NAME}>"
-    )
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E echo "480" > "$<TARGET_FILE_DIR:${TARGET_NAME}>/steam_appid.txt"
-      COMMENT "Generating steam_appid.txt"
-    )
-  endif()
-
-  # Copy Data folder to output directory after build
-  add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/Data" "$<TARGET_FILE_DIR:${TARGET_NAME}>/Data"
-  )
-endif()
-
-# Dear ImGui
 FetchContent_Declare(
   imgui
-  GIT_REPOSITORY https://github.com/ocornut/imgui
-  GIT_TAG v1.92.5-docking
+  GIT_REPOSITORY https://github.com/ocornut/imgui.git
+  GIT_TAG v1.91.9b
   GIT_SHALLOW TRUE
 )
+
 FetchContent_MakeAvailable(imgui)
 
 add_library(imgui STATIC
@@ -252,29 +111,217 @@ add_library(imgui STATIC
   ${imgui_SOURCE_DIR}/imgui_draw.cpp
   ${imgui_SOURCE_DIR}/imgui_tables.cpp
   ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-  ${imgui_SOURCE_DIR}/imgui_demo.cpp
   ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
   ${imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer3.cpp
- "Minigin/CacheTrashWindow.h" "Minigin/CacheTrashWindow.cpp")
+)
 
-target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${sdl3_SOURCE_DIR}/include)
-target_link_libraries(imgui PUBLIC SDL3::SDL3)
-# enable c++20 features
-target_compile_features(imgui PUBLIC cxx_std_20)
-
-target_include_directories("${TARGET_NAME}" PUBLIC 
-  ${CMAKE_SOURCE_DIR}/Minigin/
-  ${glm_SOURCE_DIR}
-  ${sdl3_SOURCE_DIR}/include
-  ${sdl3_image_SOURCE_DIR}/include
-  ${sdl3_ttf_SOURCE_DIR}/include
+target_include_directories(imgui PUBLIC
   ${imgui_SOURCE_DIR}
+  ${imgui_SOURCE_DIR}/backends
+)
+
+target_link_libraries(imgui PUBLIC
+  SDL3::SDL3
+)
+# =========================
+# SDL3_mixer
+# =========================
+
+find_package(SDL3_mixer CONFIG QUIET)
+
+if(NOT SDL3_mixer_FOUND)
+  if(WIN32)
+    FetchContent_Declare(
+      SDL3_mixer
+      URL https://www.libsdl.org/projects/SDL_mixer/release/SDL3_mixer-devel-3.2.0-VC.zip
+      DOWNLOAD_NO_PROGRESS ON
+      DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/downloads
+    )
+
+    FetchContent_MakeAvailable(SDL3_mixer)
+
+    file(GLOB SDL3_MIXER_CONFIG_DIRS
+      "${sdl3_mixer_SOURCE_DIR}/cmake"
+      "${sdl3_mixer_SOURCE_DIR}/*/cmake"
+    )
+
+    find_package(SDL3_mixer CONFIG REQUIRED
+      PATHS ${SDL3_MIXER_CONFIG_DIRS}
+      NO_DEFAULT_PATH
+    )
+
+  else()
+    FetchContent_Declare(
+      SDL3_mixer
+      GIT_REPOSITORY https://github.com/libsdl-org/SDL_mixer.git
+      GIT_TAG release-3.2.0
+      GIT_SHALLOW TRUE
+      GIT_PROGRESS TRUE
+    )
+
+    FetchContent_MakeAvailable(SDL3_mixer)
+  endif()
+endif()
+# Steam
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/steam")
+find_package(Steamworks QUIET)
+
+# =========================
+# Engine static library
+# =========================
+
+add_library(Minigin STATIC
+  Minigin/Font.cpp
+  Minigin/GameObject.cpp
+  Minigin/InputManager.cpp
+  Minigin/Minigin.cpp
+  Minigin/Renderer.cpp
+  Minigin/ResourceManager.cpp
+  Minigin/Scene.cpp
+  Minigin/SceneManager.cpp
+  Minigin/Texture2D.cpp
+  Minigin/Transform.cpp
+  Minigin/TransformComponent.cpp
+  Minigin/RenderComponent.cpp
+  Minigin/TextComponent.cpp
+  Minigin/CircularMovementComponent.cpp
+  Minigin/CacheTrashWindow.cpp
+  Minigin/Controller.cpp
+
+ 
+  Minigin/SDLSoundSystem.cpp
+  Minigin/LoggingSoundSystem.cpp
+)
+
+target_include_directories(Minigin PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/Minigin
   ${VLD_INCLUDE_DIR}
 )
 
-target_link_libraries("${TARGET_NAME}" PUBLIC 
-  SDL3::SDL3 
+target_compile_features(Minigin PUBLIC cxx_std_20)
+
+target_link_libraries(Minigin PUBLIC
+  SDL3::SDL3
   SDL3_ttf::SDL3_ttf
+  SDL3_mixer::SDL3_mixer
+  glm::glm
   imgui
   ${VLD_LIBRARIES}
 )
+
+if(WIN32 AND NOT EMSCRIPTEN)
+  target_link_libraries(Minigin PUBLIC xinput)
+endif()
+
+if(MSVC)
+  target_compile_options(Minigin PRIVATE /W4 /WX)
+else()
+  target_compile_options(Minigin PRIVATE -Wall -Wextra -Werror)
+endif()
+
+# =========================
+# Game executable
+# =========================
+
+if(EMSCRIPTEN)
+  set(GAME_TARGET minigin_web)
+  set(GAME_TARGET_PARAM)
+else()
+  set(GAME_TARGET minigin)
+  set(GAME_TARGET_PARAM WIN32)
+endif()
+
+add_executable(${GAME_TARGET} ${GAME_TARGET_PARAM}
+  DiggerGame/Main.cpp
+  DiggerGame/MoveCommand.cpp
+  DiggerGame/GameActorComponent.cpp
+  DiggerGame/LoseLifeCommand.cpp
+  DiggerGame/AddScoreCommand.cpp
+  DiggerGame/LivesDisplayComponent.cpp
+  DiggerGame/ScoreDisplayComponent.cpp
+  DiggerGame/SteamAchievementComponent.cpp
+)
+
+target_include_directories(${GAME_TARGET} PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/DiggerGame
+)
+
+target_link_libraries(${GAME_TARGET} PRIVATE
+  Minigin
+)
+
+if(Steamworks_FOUND)
+  target_link_libraries(${GAME_TARGET} PRIVATE Steamworks::Steamworks)
+  target_compile_definitions(${GAME_TARGET} PRIVATE USE_STEAMWORKS)
+endif()
+
+if(MSVC)
+  target_compile_options(${GAME_TARGET} PRIVATE /W4 /WX)
+else()
+  target_compile_options(${GAME_TARGET} PRIVATE -Wall -Wextra -Werror)
+endif()
+
+# =========================
+# Platform-specific setup
+# =========================
+
+if(EMSCRIPTEN)
+  set(EMSCRIPTEN_COMPILE_FLAGS "-g")
+  set(EMSCRIPTEN_LINK_FLAGS "-sUSE_FREETYPE=1 -sUSE_HARFBUZZ=1 -g -sALLOW_MEMORY_GROWTH --preload-file \"${CMAKE_CURRENT_SOURCE_DIR}/Data@/\"")
+
+  set_target_properties(${GAME_TARGET} PROPERTIES
+    COMPILE_FLAGS "${EMSCRIPTEN_COMPILE_FLAGS}"
+    LINK_FLAGS "${EMSCRIPTEN_LINK_FLAGS}"
+    SUFFIX ".html"
+  )
+
+  add_custom_command(TARGET ${GAME_TARGET} POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/web"
+    "$<TARGET_FILE_DIR:${GAME_TARGET}>/"
+  )
+
+elseif(WIN32)
+
+  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${GAME_TARGET})
+
+  set_target_properties(${GAME_TARGET} PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${GAME_TARGET}>"
+  )
+
+  set(SDL_RUNTIME_DLLS
+  SDL3::SDL3
+  SDL3_ttf::SDL3_ttf
+  SDL3_mixer::SDL3_mixer
+)
+
+  foreach(dllTarget IN LISTS SDL_RUNTIME_DLLS)
+    add_custom_command(
+      TARGET ${GAME_TARGET} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:${dllTarget}>"
+        "$<TARGET_FILE_DIR:${GAME_TARGET}>"
+      VERBATIM
+    )
+  endforeach()
+
+  if(Steamworks_FOUND)
+    add_custom_command(TARGET ${GAME_TARGET} POST_BUILD
+      COMMAND "${CMAKE_COMMAND}" -E copy
+      "${Steamworks_RUNTIME_DLL}"
+      "$<TARGET_FILE_DIR:${GAME_TARGET}>"
+    )
+
+    add_custom_command(TARGET ${GAME_TARGET} POST_BUILD
+      COMMAND "${CMAKE_COMMAND}" -E echo "480" > "$<TARGET_FILE_DIR:${GAME_TARGET}>/steam_appid.txt"
+      COMMENT "Generating steam_appid.txt"
+    )
+  endif()
+
+  add_custom_command(TARGET ${GAME_TARGET} POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/Data"
+    "$<TARGET_FILE_DIR:${GAME_TARGET}>/Data"
+  )
+
+endif()

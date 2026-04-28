@@ -24,6 +24,7 @@
 #include "Renderer.h"
 #include "ResourceManager.h"
 #include "MiniginTime.h"
+#include "ServiceLocator.h"
 
 using clocking = std::chrono::high_resolution_clock;
 
@@ -101,6 +102,7 @@ dae::Minigin::~Minigin()
 #if USE_STEAMWORKS
 	SteamAPI_Shutdown();
 #endif
+	dae::ServiceLocator::RegisterSoundSystem(nullptr);
 
 	Renderer::GetInstance().Destroy();
 	SDL_DestroyWindow(g_window);
