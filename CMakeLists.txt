@@ -170,7 +170,7 @@ find_package(Steamworks QUIET)
 # Engine static library
 # =========================
 
-add_library(Minigin STATIC
+add_library(MiniginEngine STATIC
   Minigin/Font.cpp
   Minigin/GameObject.cpp
   Minigin/InputManager.cpp
@@ -193,14 +193,14 @@ add_library(Minigin STATIC
   Minigin/LoggingSoundSystem.cpp
 )
 
-target_include_directories(Minigin PUBLIC
+target_include_directories(MiniginEngine PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/Minigin
   ${VLD_INCLUDE_DIR}
 )
 
-target_compile_features(Minigin PUBLIC cxx_std_20)
+target_compile_features(MiniginEngine PUBLIC cxx_std_20)
 
-target_link_libraries(Minigin PUBLIC
+target_link_libraries(MiniginEngine PUBLIC
   SDL3::SDL3
   SDL3_ttf::SDL3_ttf
   SDL3_mixer::SDL3_mixer
@@ -210,13 +210,13 @@ target_link_libraries(Minigin PUBLIC
 )
 
 if(WIN32 AND NOT EMSCRIPTEN)
-  target_link_libraries(Minigin PUBLIC xinput)
+  target_link_libraries(MiniginEngine PUBLIC xinput)
 endif()
 
 if(MSVC)
-  target_compile_options(Minigin PRIVATE /W4 /WX)
+  target_compile_options(MiniginEngine PRIVATE /W4 /WX)
 else()
-  target_compile_options(Minigin PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(MiniginEngine PRIVATE -Wall -Wextra -Werror)
 endif()
 
 # =========================
@@ -247,7 +247,7 @@ target_include_directories(${GAME_TARGET} PRIVATE
 )
 
 target_link_libraries(${GAME_TARGET} PRIVATE
-  Minigin
+  MiniginEngine
 )
 
 if(Steamworks_FOUND)
