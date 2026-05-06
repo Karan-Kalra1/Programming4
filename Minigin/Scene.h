@@ -27,6 +27,8 @@ namespace dae
 		friend class SceneManager;
 		explicit Scene() = default;
 
+		bool m_IsUpdating{ false };
+		std::vector<std::unique_ptr<GameObject>> m_PendingObjects;
 		std::vector < std::unique_ptr<GameObject>> m_objects{};
 	};
 

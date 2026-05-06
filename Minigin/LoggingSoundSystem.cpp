@@ -23,3 +23,16 @@ void dae::LoggingSoundSystem::StopAll()
 	std::cout << "[Sound] StopAll\n";
 	m_Wrapped->StopAll();
 }
+
+void dae::LoggingSoundSystem::SetMuted(bool muted)
+{
+	std::cout << "[Sound] Muted: " << std::boolalpha << muted << '\n';
+
+	if (m_Wrapped)
+		m_Wrapped->SetMuted(muted);
+}
+
+bool dae::LoggingSoundSystem::IsMuted() const
+{
+	return m_Wrapped ? m_Wrapped->IsMuted() : true;
+}

@@ -9,6 +9,7 @@
 #include <mutex>
 #include <queue>
 #include <string>
+#include <atomic>
 #include <thread>
 #include <unordered_map>
 
@@ -66,6 +67,9 @@ namespace dae
 
 		void Play(SoundId id, float volume)
 		{
+			if (m_Muted.load())
+				return;
+
 			volume = std::clamp(volume, 0.0f, 1.0f);
 			Enqueue(Request{ RequestType::Play, id, volume, {} });
 		}
@@ -73,6 +77,19 @@ namespace dae
 		void StopAll()
 		{
 			Enqueue(Request{ RequestType::StopAll });
+		}
+
+		void SetMuted(bool muted)
+		{
+			m_Muted.store(muted);
+
+			if (muted)
+				StopAll();
+		}
+
+		bool IsMuted() const
+		{
+			return m_Muted.load();
 		}
 
 	private:
@@ -150,7 +167,6 @@ namespace dae
 				return;
 
 			// SDL3_mixer fire-and-forget playback.
-			// Volume control is limited here unless using MIX_Track.
 			(void)volume;
 
 			if (!MIX_PlayAudio(m_Mixer, audio))
@@ -186,6 +202,7 @@ namespace dae
 		std::unordered_map<SoundId, std::string> m_SoundPaths{};
 		std::unordered_map<SoundId, MIX_Audio*> m_LoadedSounds{};
 		MIX_Mixer* m_Mixer{};
+		std::atomic_bool m_Muted{ false };
 		std::queue<Request> m_Requests{};
 		std::mutex m_Mutex{};
 		std::condition_variable m_Condition{};
@@ -212,5 +229,15 @@ namespace dae
 	void SDLSoundSystem::StopAll()
 	{
 		m_Impl->StopAll();
+	}
+
+	void SDLSoundSystem::SetMuted(bool muted)
+	{
+		m_Impl->SetMuted(muted);
+	}
+
+	bool SDLSoundSystem::IsMuted() const
+	{
+		return m_Impl->IsMuted();
 	}
 }

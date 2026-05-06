@@ -6,7 +6,18 @@ using namespace dae;
 void Scene::Add(std::unique_ptr<GameObject> object)
 {
 	assert(object != nullptr && "Cannot add a null GameObject to the scene.");
-	m_objects.emplace_back(std::move(object));
+
+	
+		if (m_IsUpdating)
+		{
+			m_PendingObjects.emplace_back(std::move(object));
+		}
+		else
+		{
+			m_objects.emplace_back(std::move(object));
+		}
+	
+	
 }
 
 void Scene::Remove(GameObject& object)
@@ -58,10 +69,22 @@ void dae::Scene::DeleteMarked()
 
 void Scene::Update()
 {
-	for(auto& object : m_objects)
+	m_IsUpdating = true;
+
+	for (auto& object : m_objects)
 	{
-		object->Update();
+		if (object)
+			object->Update();
 	}
+
+	m_IsUpdating = false;
+
+	for (auto& object : m_PendingObjects)
+	{
+		m_objects.emplace_back(std::move(object));
+	}
+
+	m_PendingObjects.clear();
 
 	DeleteMarked();
 }

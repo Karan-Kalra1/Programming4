@@ -113,7 +113,7 @@ add_library(imgui STATIC
   ${imgui_SOURCE_DIR}/imgui_widgets.cpp
   ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
   ${imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer3.cpp
-)
+ )
 
 target_include_directories(imgui PUBLIC
   ${imgui_SOURCE_DIR}
@@ -191,7 +191,7 @@ add_library(MiniginEngine STATIC
  
   Minigin/SDLSoundSystem.cpp
   Minigin/LoggingSoundSystem.cpp
-)
+ )
 
 target_include_directories(MiniginEngine PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/Minigin
@@ -240,6 +240,17 @@ add_executable(${GAME_TARGET} ${GAME_TARGET_PARAM}
   DiggerGame/LivesDisplayComponent.cpp
   DiggerGame/ScoreDisplayComponent.cpp
   DiggerGame/SteamAchievementComponent.cpp
+  DiggerGame/GameManagerComponent.cpp
+  DiggerGame/LevelLoader.cpp
+  DiggerGame/GridPositionComponent.cpp
+  DiggerGame/DiamondComponent.cpp
+  DiggerGame/GridMoveCommand.cpp
+  DiggerGame/SkipLevelCommand.cpp
+  DiggerGame/ToggleMuteCommand.cpp
+  DiggerGame/EnemyComponent.cpp
+  DiggerGame/NobbinState.cpp
+  DiggerGame/HobbinState.cpp
+  DiggerGame/EnemyDeadState.cpp
 )
 
 target_include_directories(${GAME_TARGET} PRIVATE
