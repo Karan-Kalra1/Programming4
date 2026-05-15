@@ -251,6 +251,7 @@ add_executable(${GAME_TARGET} ${GAME_TARGET_PARAM}
   DiggerGame/NobbinState.cpp
   DiggerGame/HobbinState.cpp
   DiggerGame/EnemyDeadState.cpp
+  DiggerGame/GridMovementComponent.cpp
 )
 
 target_include_directories(${GAME_TARGET} PRIVATE

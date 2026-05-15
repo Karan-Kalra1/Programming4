@@ -2,6 +2,7 @@
 #include <fstream>
 #include <stdexcept>
 
+
 digger::LevelData digger::LevelLoader::Load(const std::filesystem::path& path)
 {
 	std::ifstream file{ path };

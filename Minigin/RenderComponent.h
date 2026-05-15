@@ -9,15 +9,37 @@ namespace dae
 	class RenderComponent final : public Component
 	{
 	public:
-		RenderComponent(GameObject* owner,std::shared_ptr<Texture2D> texture)
-			: Component::Component(owner),m_texture(texture)
+
+		// Normal render using transform scale
+		RenderComponent(
+			GameObject* owner,
+			std::shared_ptr<Texture2D> texture)
+			: Component(owner)
+			, m_texture(std::move(texture))
 		{
-			
+		}
+
+		// Fixed-size render (used for dirt tiles)
+		RenderComponent(
+			GameObject* owner,
+			std::shared_ptr<Texture2D> texture,
+			float width,
+			float height)
+			: Component(owner)
+			, m_texture(std::move(texture))
+			, m_UseFixedSize(true)
+			, m_Width(width)
+			, m_Height(height)
+		{
 		}
 
 		void Render() const override;
 
 	private:
-		std::shared_ptr<Texture2D> m_texture;
+		std::shared_ptr<Texture2D> m_texture{};
+
+		bool m_UseFixedSize{};
+		float m_Width{};
+		float m_Height{};
 	};
 }

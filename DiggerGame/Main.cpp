@@ -65,16 +65,24 @@ static void load()
 		std::make_unique<digger::ToggleMuteCommand>(manager));
 
 	input.BindKeyboardCommand(SDL_SCANCODE_W, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ 0, -1 }));
+		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ 0, -1 },true));
+	input.BindKeyboardCommand(SDL_SCANCODE_W, dae::KeyState::Up,
+		std::make_unique<digger::GridMoveCommand>(manager, glm::ivec2{ 0, -1 },false));
 
 	input.BindKeyboardCommand(SDL_SCANCODE_S, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ 0, 1 }));
+		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ 0, 1 },true));
+	input.BindKeyboardCommand(SDL_SCANCODE_S, dae::KeyState::Up,
+		std::make_unique<digger::GridMoveCommand>(manager, glm::ivec2{ 0, 1 }, false));
 
 	input.BindKeyboardCommand(SDL_SCANCODE_A, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ -1, 0 }));
+		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ -1, 0 },true));
+	input.BindKeyboardCommand(SDL_SCANCODE_A, dae::KeyState::Up,
+		std::make_unique<digger::GridMoveCommand>(manager, glm::ivec2{ -1, 0 }, false));
 
 	input.BindKeyboardCommand(SDL_SCANCODE_D, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ 1, 0 }));
+		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ 1, 0 },true));
+	input.BindKeyboardCommand(SDL_SCANCODE_D, dae::KeyState::Up,
+		std::make_unique<digger::GridMoveCommand>(manager, glm::ivec2{ 1, 0 }, false));
 
 	scene.Add(std::move(managerObject));
 }

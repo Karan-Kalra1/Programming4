@@ -12,6 +12,7 @@
 #include "GameActorComponent.h"
 #include "EventBus.h"
 #include "ServiceLocator.h"
+#include "GridMovementComponent.h"
 
 #include <memory>
 #include <iostream>
@@ -108,6 +109,12 @@ void digger::GameManagerComponent::CollectDiamond(dae::GameObject* diamond)
 }
 void digger::GameManagerComponent::ClearLevel()
 {
+	if (m_PlayerActor)
+	{
+		dae::EventBus::GetInstance().GetSubject().RemoveObserver(m_PlayerActor);
+		m_PlayerActor = nullptr;
+	}
+
 	for (auto* object : m_LevelObjects)
 	{
 		if (object)
@@ -127,18 +134,24 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 	auto* playerPtr = player.get();
 
 	player->AddComponent<dae::TransformComponent>(playerPtr);
-	player->AddComponent<GridPositionComponent>(playerPtr, m_TileSize)
-		->SetGridPosition(data.playerSpawn);
 
-	auto* playerTr = playerPtr->GetComponent<dae::TransformComponent>();
-	playerTr->SetLocalScale(0.07f, 0.07f);
+	auto* movement = player->AddComponent<GridMovementComponent>(
+		playerPtr,
+		this,
+		m_TileSize,
+		120.f,
+		m_MapOffset);
 
+	movement->SetGridPosition(data.playerSpawn);
+
+	
 	player->AddComponent<dae::RenderComponent>(
 		playerPtr,
 		dae::ResourceManager::GetInstance().LoadTexture("Digger.png"));
 
 	auto* actor = player->AddComponent<dae::GameActorComponent>(playerPtr, m_Lives, m_Score, 1);
-	dae::EventBus::GetInstance().GetSubject().AddObserver(actor);
+	m_PlayerActor = actor;
+	dae::EventBus::GetInstance().GetSubject().AddObserver(m_PlayerActor);
 
 	m_Player = playerPtr;
 	m_PlayerSpawn = data.playerSpawn;
@@ -157,23 +170,45 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 			if (data.tiles[y][x] != '#')
 				continue;
 
-			auto dirt = std::make_unique<dae::GameObject>();
-			auto* dirtPtr = dirt.get();
+			const glm::ivec2 gridPos{ x, y };
+			const std::string key = MakeTileKey(gridPos);
 
-			auto* transform =
-				dirt->AddComponent<dae::TransformComponent>(dirtPtr);
+			DirtTile dirtTile{};
 
-			transform->SetLocalPosition(
-				static_cast<float>(x * m_TileSize),
-				static_cast<float>(y * m_TileSize));
+			const int subdivisions = 4;
+			const float pieceSize =
+				static_cast<float>(m_TileSize) / static_cast<float>(subdivisions);
 
-			transform->SetLocalScale(.065f, .065f);
+			for (int py = 0; py < subdivisions; ++py)
+			{
+				for (int px = 0; px < subdivisions; ++px)
+				{
+					const int pieceIndex = py * subdivisions + px;
 
-			dirt->AddComponent<dae::RenderComponent>(dirtPtr, dirtTexture);
+					auto dirt = std::make_unique<dae::GameObject>();
+					auto* dirtPtr = dirt.get();
 
-			m_DirtTiles[MakeTileKey({ x, y })] = dirtPtr;
-			m_LevelObjects.push_back(dirtPtr);
-			m_Scene->Add(std::move(dirt));
+					auto* transform =
+						dirt->AddComponent<dae::TransformComponent>(dirtPtr);
+
+					transform->SetLocalPosition(
+						m_MapOffset.x + static_cast<float>(x * m_TileSize) + px * pieceSize,
+						m_MapOffset.y + static_cast<float>(y * m_TileSize) + py * pieceSize);
+
+					dirt->AddComponent<dae::RenderComponent>(
+						dirtPtr,
+						dirtTexture,
+						pieceSize,
+						pieceSize);
+
+					dirtTile.pieces[pieceIndex] = dirtPtr;
+
+					m_LevelObjects.push_back(dirtPtr);
+					m_Scene->Add(std::move(dirt));
+				}
+			}
+
+			m_DirtTiles[key] = dirtTile;
 		}
 	}
 
@@ -184,11 +219,9 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 		auto* diamondPtr = diamond.get();
 
 		diamond->AddComponent<dae::TransformComponent>(diamondPtr);
-		diamond->AddComponent<GridPositionComponent>(diamondPtr, m_TileSize)
+		diamond->AddComponent<GridPositionComponent>(diamondPtr, m_TileSize, m_MapOffset)
 			->SetGridPosition(diamondPos);
 
-		auto* tr = diamondPtr->GetComponent<dae::TransformComponent>();
-		tr->SetLocalScale(0.055f, 0.055f);
 
 		diamond->AddComponent<dae::RenderComponent>(
 			diamondPtr,
@@ -208,17 +241,13 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 
 		enemy->AddComponent<dae::TransformComponent>(enemyPtr);
 
-		enemy->AddComponent<GridPositionComponent>(enemyPtr, m_TileSize)
-			->SetGridPosition(enemyPos);
-
-		if (auto* tr = enemyPtr->GetComponent<dae::TransformComponent>())
-			tr->SetLocalScale(0.05f, 0.05f);
-
 		enemy->AddComponent<dae::RenderComponent>(
 			enemyPtr,
 			dae::ResourceManager::GetInstance().LoadTexture("Nobbin.png"));
 
 		auto* enemyComp = enemy->AddComponent<EnemyComponent>(enemyPtr, this);
+		enemyComp->SetGridPosition(enemyPos);
+
 		RegisterEnemy(enemyComp);
 		m_LevelObjects.push_back(enemyPtr);
 		m_Scene->Add(std::move(enemy));
@@ -262,32 +291,105 @@ void digger::GameManagerComponent::DigTile(const glm::ivec2& pos)
 	if (!IsDirt(pos))
 		return;
 
-	m_LevelData.tiles[pos.y][pos.x] = '.';
-
-	const auto key = MakeTileKey(pos);
+	auto key = MakeTileKey(pos);
 	auto it = m_DirtTiles.find(key);
 
 	if (it != m_DirtTiles.end())
 	{
-		auto* dirtObject = it->second;
-
-		if (auto* transform = dirtObject->GetComponent<dae::TransformComponent>())
-			transform->SetLocalPosition(-1000.f, -1000.f);
+		for (int i = 0; i < 4; ++i)
+		{
+			if (auto* obj = it->second.pieces[i])
+			{
+				if (auto* tr = obj->GetComponent<dae::TransformComponent>())
+					tr->SetLocalPosition(-5000.f, -5000.f);
+			}
+		}
 
 		m_DirtTiles.erase(it);
 	}
+
+	m_LevelData.tiles[pos.y][pos.x] = '.';
 }
+
+void digger::GameManagerComponent::DigTilePartial(
+	const glm::ivec2& pos,
+	const glm::ivec2& direction)
+{
+	if (!IsDirt(pos))
+		return;
+
+	auto key = MakeTileKey(pos);
+	auto it = m_DirtTiles.find(key);
+
+	if (it == m_DirtTiles.end())
+		return;
+
+	auto& tile = it->second;
+
+	auto hidePiece = [&](int index)
+		{
+			if (tile.removed[index])
+				return;
+
+			tile.removed[index] = true;
+
+			if (auto* obj = tile.pieces[index])
+			{
+				if (auto* tr = obj->GetComponent<dae::TransformComponent>())
+					tr->SetLocalPosition(-5000.f, -5000.f);
+			}
+		};
+
+	if (direction.x > 0)
+	{
+		hidePiece(0);
+		hidePiece(2);
+	}
+	else if (direction.x < 0)
+	{
+		hidePiece(1);
+		hidePiece(3);
+	}
+	else if (direction.y > 0)
+	{
+		hidePiece(0);
+		hidePiece(1);
+	}
+	else if (direction.y < 0)
+	{
+		hidePiece(2);
+		hidePiece(3);
+	}
+
+	bool fullyRemoved =
+		tile.removed[0] &&
+		tile.removed[1] &&
+		tile.removed[2] &&
+		tile.removed[3];
+
+	if (fullyRemoved)
+	{
+		m_LevelData.tiles[pos.y][pos.x] = '.';
+	}
+}
+
+
+
 
 glm::ivec2 digger::GameManagerComponent::GetPlayerGridPosition() const
 {
-	if (!m_Player)
-		return {};
+	
+		if (!m_Player)
+			return {};
 
-	auto* grid = m_Player->GetComponent<GridPositionComponent>();
-	if (!grid)
-		return {};
+		if (auto* movement = m_Player->GetComponent<GridMovementComponent>())
+			return movement->GetGridPosition();
 
-	return grid->GetGridPosition();
+		if (auto* grid = m_Player->GetComponent<GridPositionComponent>())
+			return grid->GetGridPosition();
+
+		return {};
+	
 }
 
 void digger::GameManagerComponent::DamagePlayer()
@@ -298,9 +400,9 @@ void digger::GameManagerComponent::DamagePlayer()
 	dae::EventBus::GetInstance().GetSubject().Notify(
 		dae::Event{ dae::EventType::DamageRequested, m_Player, 1 });
 
-	auto* grid = m_Player->GetComponent<GridPositionComponent>();
-	if (grid)
-		grid->SetGridPosition(m_PlayerSpawn);
+      auto* grid = m_Player->GetComponent<GridMovementComponent>();
+		if (grid)
+		 grid->SetGridPosition(m_PlayerSpawn);
 }
 
 void digger::GameManagerComponent::RegisterEnemy(EnemyComponent* enemy)
@@ -325,4 +427,125 @@ void digger::GameManagerComponent::CheckEnemyCrossings()
 			}
 		}
 	}
+}
+
+bool digger::GameManagerComponent::CanPlayerMoveTo(const glm::ivec2& pos) const
+{
+	if (pos.x < 0 || pos.y < 0)
+		return false;
+
+	if (pos.y >= m_LevelData.height || pos.x >= m_LevelData.width)
+		return false;
+
+	const char tile = m_LevelData.tiles[pos.y][pos.x];
+
+	if (tile == 'X')
+		return false;
+
+	return true;
+}
+
+void digger::GameManagerComponent::DigAtWorldPosition(
+	const glm::vec2& worldPos,
+	const glm::ivec2&)
+{
+	DigAtPoint(worldPos);
+	DigAtPoint(worldPos + glm::vec2{ m_DigRadius, 0.f });
+	DigAtPoint(worldPos + glm::vec2{ -m_DigRadius, 0.f });
+	DigAtPoint(worldPos + glm::vec2{ 0.f,  m_DigRadius });
+	DigAtPoint(worldPos + glm::vec2{ 0.f, -m_DigRadius });
+}
+
+glm::vec2 digger::GameManagerComponent::GetPlayerWorldPosition() const
+{
+	if (!m_Player)
+		return {};
+
+	if (auto* movement = m_Player->GetComponent<GridMovementComponent>())
+		return movement->GetWorldPosition() + m_PlayerCenterOffset;
+
+	if (auto* tr = m_Player->GetComponent<dae::TransformComponent>())
+	{
+		const auto& pos = tr->GetWorldPosition();
+		return { pos.x + m_PlayerCenterOffset.x, pos.y + m_PlayerCenterOffset.y };
+	}
+
+	return {};
+}
+
+
+void digger::GameManagerComponent::DigAtPoint(const glm::vec2& point)
+{
+	const int gridX = static_cast<int>(
+		std::floor((point.x - m_MapOffset.x) / static_cast<float>(m_TileSize)));
+
+	const int gridY = static_cast<int>(
+		std::floor((point.y - m_MapOffset.y) / static_cast<float>(m_TileSize)));
+
+	const glm::ivec2 tilePos{ gridX, gridY };
+
+	if (!IsDirt(tilePos))
+		return;
+
+	auto it = m_DirtTiles.find(MakeTileKey(tilePos));
+	if (it == m_DirtTiles.end())
+		return;
+
+	auto& tile = it->second;
+
+	constexpr int subdivisions = 4;
+	const float pieceSize =
+		static_cast<float>(m_TileSize) / static_cast<float>(subdivisions);
+
+	const float tileWorldX = m_MapOffset.x + static_cast<float>(gridX * m_TileSize);
+	const float tileWorldY = m_MapOffset.y + static_cast<float>(gridY * m_TileSize);
+
+	const float digRadius = 12.0f;
+	const float digRadiusSq = digRadius * digRadius;
+
+	auto removePiece = [&](int index)
+		{
+			if (tile.removed[index])
+				return;
+
+			tile.removed[index] = true;
+
+			if (auto* obj = tile.pieces[index])
+			{
+				if (auto* tr = obj->GetComponent<dae::TransformComponent>())
+					tr->SetLocalPosition(-5000.f, -5000.f);
+			}
+		};
+
+	for (int py = 0; py < subdivisions; ++py)
+	{
+		for (int px = 0; px < subdivisions; ++px)
+		{
+			const int index = py * subdivisions + px;
+
+			const glm::vec2 pieceCenter{
+				tileWorldX + px * pieceSize + pieceSize * 0.5f,
+				tileWorldY + py * pieceSize + pieceSize * 0.5f
+			};
+
+			const glm::vec2 diff = pieceCenter - point;
+			const float distSq = diff.x * diff.x + diff.y * diff.y;
+
+			if (distSq <= digRadiusSq)
+				removePiece(index);
+		}
+	}
+
+	bool fullyRemoved = true;
+	for (bool removed : tile.removed)
+	{
+		if (!removed)
+		{
+			fullyRemoved = false;
+			break;
+		}
+	}
+
+	if (fullyRemoved)
+		m_LevelData.tiles[tilePos.y][tilePos.x] = '.';
 }

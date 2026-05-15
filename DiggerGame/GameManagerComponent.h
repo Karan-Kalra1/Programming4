@@ -8,6 +8,8 @@
 #include "EnemyComponent.h"
 #include <unordered_map>
 #include <string>
+#include "LevelLoader.h"
+#include "GameActorComponent.h"
 
 namespace dae
 {
@@ -33,22 +35,30 @@ namespace digger
 		void DigTile(const glm::ivec2& pos);
 		bool IsDirt(const glm::ivec2& pos) const;
 		void DamagePlayer();
-
+		void DigTilePartial(const glm::ivec2& pos, const glm::ivec2& direction);
+		bool CanPlayerMoveTo(const glm::ivec2& pos) const;
+		void DigAtWorldPosition(const glm::vec2& worldPos, const glm::ivec2& direction);
 
 		dae::GameObject* GetPlayer() const { return m_Player; }
-
+		glm::vec2 GetPlayerWorldPosition() const;
+		float GetCollisionRadius() const { return m_TileSize * 0.7f; }
+		glm::vec2 GetMapOffset(){ return m_MapOffset; }
+		int GetTileSize() { return m_TileSize; }
+		
+		void DigAtPoint(const glm::vec2& point);
 	private:
 		void ClearLevel();
 		void Update() override;
 		void SpawnLevel(const LevelData& data);
 		std::string MakeTileKey(const glm::ivec2& pos) const;
+		
 
 		dae::Scene* m_Scene{};
 		GameMode m_Mode{ GameMode::SinglePlayer };
 		bool m_ShouldLoadNextLevel{};
 
 		int m_CurrentLevel{};
-		int m_TileSize{ 32 };
+		int m_TileSize{ 64 };
 		int m_Score{};
 		int m_Lives{ 4 };
 
@@ -59,14 +69,17 @@ namespace digger
 
 		LevelData m_LevelData{};
 
+		glm::vec2 m_PlayerCenterOffset{ 32.f, 32.f };
+		float m_DigRadius{ 26.f };
+
 		std::vector<dae::GameObject*> m_LevelObjects;
 		dae::GameObject* m_Player{};
+		dae::GameActorComponent* m_PlayerActor{};
 		std::vector<dae::GameObject*> m_Diamonds{};
 		std::vector<EnemyComponent*> m_Enemies{};
 		std::vector<std::unique_ptr<dae::GameObject>> m_DirtVisuals{};
-		std::unordered_map<std::string, dae::GameObject*> m_DirtTiles{};
-
-
+		std::unordered_map<std::string, DirtTile> m_DirtTiles{};
+		glm::vec2 m_MapOffset{ -32.f, -32.f };
 		
 	};
 }

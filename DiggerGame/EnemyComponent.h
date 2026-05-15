@@ -26,6 +26,12 @@ namespace digger
 		bool CanMoveTo(const glm::ivec2& pos, bool canDig) const;
 		void DigTile(const glm::ivec2& pos);
 		dae::GameObject* GetGameObject() const;
+		void SetGridPosition(const glm::ivec2& pos);
+		bool IsMoving() const { return m_IsMoving; }
+
+		//void MoveTowardPlayerSmooth(bool canDig);
+		void UpdateSmoothMovement();
+
 
 		bool IsOnPlayer() const;
 
@@ -37,6 +43,15 @@ namespace digger
 	private:
 		GameManagerComponent* m_Manager{};
 		std::unique_ptr<EnemyState> m_State{};
+
+		bool m_IsMoving{};
+		float m_Speed{ 120.f };
+
+		glm::ivec2 m_CurrentGrid{};
+		glm::ivec2 m_TargetGrid{};
+
+		glm::vec2 m_WorldPosition{};
+		glm::vec2 m_TargetWorldPosition{};
 
 		int m_CrossCounter{};
 	};

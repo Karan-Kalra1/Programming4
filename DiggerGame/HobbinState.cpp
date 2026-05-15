@@ -13,13 +13,12 @@ void digger::HobbinState::OnEnter(EnemyComponent& enemy)
 
 	//make Hobbin slightly larger.
 	if (auto* tr = enemy.GetGameObject()->GetComponent<dae::TransformComponent>())
-		tr->SetLocalScale(0.065f, 0.065f);
+		tr->SetLocalScale(1.05f, 1.05f);
 }
 
 void digger::HobbinState::Update(EnemyComponent& enemy)
 {
 	m_StateTimer += dae::MiniginTime::GetDeltaTime();
-	m_MoveTimer += dae::MiniginTime::GetDeltaTime();
 
 	if (enemy.IsOnPlayer())
 	{
@@ -33,12 +32,6 @@ void digger::HobbinState::Update(EnemyComponent& enemy)
 		return;
 	}
 
-	if (m_MoveTimer < m_MoveDelay)
-		return;
-
-	m_MoveTimer = 0.f;
-
-	// Hobbins chase player and may dig through dirt.
 	enemy.MoveTowardPlayer(true);
 }
 

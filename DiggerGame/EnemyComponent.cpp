@@ -11,6 +11,7 @@
 #include <queue>
 #include <unordered_map>
 #include <algorithm>
+#include "MiniginTime.h"
 
 namespace
 {
@@ -20,6 +21,17 @@ namespace
 		{
 			return std::hash<int>()(v.x * 73856093 ^ v.y * 19349663);
 		}
+	};
+}
+
+glm::vec2 GridToWorld(
+	const glm::ivec2& grid,
+	int tileSize,
+	const glm::vec2& offset)
+{
+	return {
+		offset.x + static_cast<float>(grid.x * tileSize),
+		offset.y + static_cast<float>(grid.y * tileSize)
 	};
 }
 
@@ -35,6 +47,8 @@ digger::EnemyComponent::~EnemyComponent() = default;
 
 void digger::EnemyComponent::Update()
 {
+	UpdateSmoothMovement();
+
 	if (m_State)
 		m_State->Update(*this);
 }
@@ -52,8 +66,7 @@ void digger::EnemyComponent::ChangeState(std::unique_ptr<EnemyState> newState)
 
 glm::ivec2 digger::EnemyComponent::GetGridPosition() const
 {
-	auto* grid = GetOwner()->GetComponent<GridPositionComponent>();
-	return grid ? grid->GetGridPosition() : glm::ivec2{};
+	return m_CurrentGrid;
 }
 
 
@@ -62,7 +75,43 @@ glm::ivec2 digger::EnemyComponent::GetPlayerGridPosition() const
 	return m_Manager ? m_Manager->GetPlayerGridPosition() : glm::ivec2{};
 }
 
+void digger::EnemyComponent::SetGridPosition(const glm::ivec2& pos)
+{
+	m_CurrentGrid = pos;
+	m_TargetGrid = pos;
 
+	m_WorldPosition = GridToWorld(pos, m_Manager->GetTileSize(), m_Manager->GetMapOffset());
+	m_TargetWorldPosition = m_WorldPosition;
+
+	if (auto* tr = GetGameObject()->GetComponent<dae::TransformComponent>())
+		tr->SetLocalPosition(m_WorldPosition.x, m_WorldPosition.y);
+}
+
+void digger::EnemyComponent::UpdateSmoothMovement()
+{
+	if (!m_IsMoving)
+		return;
+
+	const float dt = dae::MiniginTime::GetDeltaTime();
+
+	glm::vec2 toTarget = m_TargetWorldPosition - m_WorldPosition;
+	const float distance = glm::length(toTarget);
+	const float moveDistance = m_Speed * dt;
+
+	if (distance <= moveDistance)
+	{
+		m_WorldPosition = m_TargetWorldPosition;
+		m_CurrentGrid = m_TargetGrid;
+		m_IsMoving = false;
+	}
+	else
+	{
+		m_WorldPosition += glm::normalize(toTarget) * moveDistance;
+	}
+
+	if (auto* tr = GetGameObject()->GetComponent<dae::TransformComponent>())
+		tr->SetLocalPosition(m_WorldPosition.x, m_WorldPosition.y);
+}
 
 bool digger::EnemyComponent::CanMoveTo(const glm::ivec2& pos, bool canDig) const
 {
@@ -79,14 +128,33 @@ void digger::EnemyComponent::DigTile(const glm::ivec2& pos)
 
 bool digger::EnemyComponent::IsOnPlayer() const
 {
-	return GetGridPosition() == GetPlayerGridPosition();
+	
+		if (!m_Manager)
+			return false;
+
+		auto* myTransform = GetGameObject()->GetComponent<dae::TransformComponent>();
+		if (!myTransform)
+			return false;
+
+		const auto& myPos3 = myTransform->GetWorldPosition();
+		glm::vec2 enemyPos{ myPos3.x + 32.f, myPos3.y + 32.f };
+
+		glm::vec2 playerPos = m_Manager->GetPlayerWorldPosition();
+
+		const float dx = enemyPos.x - playerPos.x;
+		const float dy = enemyPos.y - playerPos.y;
+
+		const float radius = m_Manager->GetCollisionRadius();
+
+		return (dx * dx + dy * dy) <= radius * radius;
+	
 }
 
 void digger::EnemyComponent::MoveTowardPlayer(bool canDig)
 {
-	auto* grid = GetOwner()->GetComponent<GridPositionComponent>();
-	if (!grid)
+	if (m_IsMoving)
 		return;
+
 
 	const glm::ivec2 start = GetGridPosition();
 	const glm::ivec2 goal = GetPlayerGridPosition();
@@ -146,12 +214,17 @@ void digger::EnemyComponent::MoveTowardPlayer(bool canDig)
 		current = cameFrom[current];
 	}
 
-	glm::ivec2 direction = current - start;
+	m_TargetGrid = current;
+
+	m_TargetWorldPosition = GridToWorld(
+		m_TargetGrid,
+		m_Manager->GetTileSize(),
+		m_Manager->GetMapOffset());
 
 	if (canDig)
-		DigTile(current);
+		DigTile(m_TargetGrid);
 
-	grid->Move(direction);
+	m_IsMoving = true;
 }
 
 dae::GameObject* digger::EnemyComponent::GetGameObject() const

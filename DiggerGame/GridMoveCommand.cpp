@@ -1,15 +1,7 @@
 #include "GridMoveCommand.h"
 #include "GameManagerComponent.h"
 #include "GameObject.h"
-#include "GridPositionComponent.h"
-
-digger::GridMoveCommand::GridMoveCommand(
-	GameManagerComponent* manager,
-	const glm::ivec2& direction)
-	: m_Manager(manager)
-	, m_Direction(direction)
-{
-}
+#include "GridMovementComponent.h"
 
 void digger::GridMoveCommand::Execute()
 {
@@ -20,12 +12,12 @@ void digger::GridMoveCommand::Execute()
 	if (!player)
 		return;
 
-	auto* grid = player->GetComponent<GridPositionComponent>();
-	if (!grid)
+	auto* movement = player->GetComponent<GridMovementComponent>();
+	if (!movement)
 		return;
 
-	const glm::ivec2 nextPos = grid->GetGridPosition() + m_Direction;
-
-	m_Manager->DigTile(nextPos);
-	grid->Move(m_Direction);
+	if (m_Pressed)
+		movement->PressDirection(m_Direction);
+	else
+		movement->ReleaseDirection(m_Direction);
 }
