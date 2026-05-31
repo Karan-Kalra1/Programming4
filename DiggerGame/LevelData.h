@@ -15,5 +15,7 @@ namespace digger
 		glm::ivec2 playerSpawn{};
 		std::vector<glm::ivec2> diamonds;
 		std::vector<glm::ivec2> enemies;
+		glm::ivec2 enemySpawn{};
+		bool hasEnemySpawn{};
 	};
 }

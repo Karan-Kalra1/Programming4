@@ -32,9 +32,17 @@ digger::LevelData digger::LevelLoader::Load(const std::filesystem::path& path)
 			if (c == 'P')
 				data.playerSpawn = { x, y };
 			else if (c == 'D')
+			{
 				data.diamonds.push_back({ x, y });
+				data.tiles[y][x] = '#';// diamond sits on dirt
+			}
 			else if (c == 'M')
 				data.enemies.push_back({ x, y });
+			else if (c == 'S')
+			{
+				data.enemySpawn = { x, y };
+				data.hasEnemySpawn = true;
+			}
 		}
 	}
 

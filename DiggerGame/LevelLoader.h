@@ -3,13 +3,14 @@
 #include "LevelData.h"
 #include "GameObject.h"
 
+static constexpr int DirtSubdivisions = 16;
+static constexpr int DirtPieceCount = DirtSubdivisions * DirtSubdivisions;
 
 struct DirtTile
 {
-	static constexpr int Size = 16;
 
-	dae::GameObject* pieces[Size]{};
-	bool removed[Size]{};
+	dae::GameObject* pieces[DirtPieceCount]{};
+	bool removed[DirtPieceCount]{};
 };
 
 

@@ -252,6 +252,8 @@ add_executable(${GAME_TARGET} ${GAME_TARGET_PARAM}
   DiggerGame/HobbinState.cpp
   DiggerGame/EnemyDeadState.cpp
   DiggerGame/GridMovementComponent.cpp
+  DiggerGame/FireballComponent.cpp
+  DiggerGame/ShootFireballCommand.cpp
 )
 
 target_include_directories(${GAME_TARGET} PRIVATE

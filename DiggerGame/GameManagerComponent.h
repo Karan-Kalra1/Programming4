@@ -35,7 +35,6 @@ namespace digger
 		void DigTile(const glm::ivec2& pos);
 		bool IsDirt(const glm::ivec2& pos) const;
 		void DamagePlayer();
-		void DigTilePartial(const glm::ivec2& pos, const glm::ivec2& direction);
 		bool CanPlayerMoveTo(const glm::ivec2& pos) const;
 		void DigAtWorldPosition(const glm::vec2& worldPos, const glm::ivec2& direction);
 
@@ -44,7 +43,12 @@ namespace digger
 		float GetCollisionRadius() const { return m_TileSize * 0.7f; }
 		glm::vec2 GetMapOffset(){ return m_MapOffset; }
 		int GetTileSize() { return m_TileSize; }
-		
+		void KillEnemy(EnemyComponent* enemy);
+		float GetFireballCooldown() const;
+		void ShootFireball();
+		void CheckFireballHit(dae::GameObject* fireball);
+		glm::ivec2 GetPlayerFacingDirection() const;
+
 		void DigAtPoint(const glm::vec2& point);
 	private:
 		void ClearLevel();
@@ -70,7 +74,7 @@ namespace digger
 		LevelData m_LevelData{};
 
 		glm::vec2 m_PlayerCenterOffset{ 32.f, 32.f };
-		float m_DigRadius{ 26.f };
+		float m_DigRadius{ 20.f };
 
 		std::vector<dae::GameObject*> m_LevelObjects;
 		dae::GameObject* m_Player{};
@@ -80,6 +84,22 @@ namespace digger
 		std::vector<std::unique_ptr<dae::GameObject>> m_DirtVisuals{};
 		std::unordered_map<std::string, DirtTile> m_DirtTiles{};
 		glm::vec2 m_MapOffset{ -32.f, -32.f };
+
+
+		void SpawnEnemy();
+		
+		void ResetEnemiesAfterPlayerDeath();
+
+		glm::ivec2 m_EnemySpawn{};
+		int m_EnemiesRemainingToSpawn{};
+		int m_EnemiesAlive{};
+		int m_TotalEnemiesThisStage{};
+
+		float m_EnemySpawnTimer{};
+		float m_EnemySpawnInterval{ 2.0f };
+
+		float m_FireballCooldownTimer{};
+		std::vector<dae::GameObject*> m_Fireballs{};
 		
 	};
 }

@@ -5,15 +5,20 @@
 #include "MiniginTime.h"
 #include "GameObject.h"
 #include "TransformComponent.h"
+#include "RenderComponent.h"
+#include "ResourceManager.h"
 
 void digger::HobbinState::OnEnter(EnemyComponent& enemy)
 {
 	m_MoveTimer = 0.f;
 	m_StateTimer = 0.f;
 
-	//make Hobbin slightly larger.
-	if (auto* tr = enemy.GetGameObject()->GetComponent<dae::TransformComponent>())
-		tr->SetLocalScale(1.05f, 1.05f);
+	auto* render = enemy.GetGameObject()->GetComponent<dae::RenderComponent>();
+	if (render)
+	{
+		render->SetTexture(
+			dae::ResourceManager::GetInstance().LoadTexture("Hobbin.png"));
+	}
 }
 
 void digger::HobbinState::Update(EnemyComponent& enemy)
@@ -37,6 +42,10 @@ void digger::HobbinState::Update(EnemyComponent& enemy)
 
 void digger::HobbinState::OnExit(EnemyComponent& enemy)
 {
-	if (auto* tr = enemy.GetGameObject()->GetComponent<dae::TransformComponent>())
-		tr->SetLocalScale(0.05f, 0.05f);
+	auto* render = enemy.GetGameObject()->GetComponent<dae::RenderComponent>();
+	if (render)
+	{
+		render->SetTexture(
+			dae::ResourceManager::GetInstance().LoadTexture("Nobbin.png"));
+	}
 }

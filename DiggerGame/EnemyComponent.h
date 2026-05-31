@@ -34,6 +34,11 @@ namespace digger
 
 
 		bool IsOnPlayer() const;
+		glm::ivec2 FindRoamTarget(bool canDig) const;
+
+
+		bool IsDead() const { return m_IsDead; }
+		void Kill();
 
 		void RegisterEnemyCollision();
 		void ResetCollisionCounter();
@@ -46,6 +51,8 @@ namespace digger
 
 		bool m_IsMoving{};
 		float m_Speed{ 120.f };
+		bool m_IsDead{};
+		bool m_CanDigCurrentMove{};
 
 		glm::ivec2 m_CurrentGrid{};
 		glm::ivec2 m_TargetGrid{};

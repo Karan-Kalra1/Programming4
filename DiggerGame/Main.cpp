@@ -36,6 +36,7 @@
 #include "SkipLevelCommand.h"
 #include "ToggleMuteCommand.h"
 #include "GridMoveCommand.h"
+#include "ShootFireballCommand.h"
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -83,6 +84,10 @@ static void load()
 		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ 1, 0 },true));
 	input.BindKeyboardCommand(SDL_SCANCODE_D, dae::KeyState::Up,
 		std::make_unique<digger::GridMoveCommand>(manager, glm::ivec2{ 1, 0 }, false));
+	input.BindKeyboardCommand(SDL_SCANCODE_SPACE, dae::KeyState::Down,
+		std::make_unique<digger::ShootFireballCommand>(manager));
+	input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,
+		std::make_unique<digger::ShootFireballCommand>(manager));
 
 	scene.Add(std::move(managerObject));
 }

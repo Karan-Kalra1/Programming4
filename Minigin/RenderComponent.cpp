@@ -30,11 +30,34 @@ void dae::RenderComponent::Render() const
 	}
 	else
 	{
-		Renderer::GetInstance().RenderTexture(
-			*m_texture,
-			pos.x,
-			pos.y,
-			scale.x,
-			scale.y);
+
+		const double angle = transform->GetRotation();
+		const bool flipX = transform->IsFlippedX();
+		const bool flipY = transform->GetFlipY();
+
+		if (angle != 0.0 || flipX || flipY)
+		{
+						
+
+			Renderer::GetInstance().RenderTextureRotated(
+				*m_texture,
+				pos.x,
+				pos.y,
+				scale.x,
+				scale.y,
+				angle,
+				flipX,
+				flipY);
+		}
+		else
+		{
+			Renderer::GetInstance().RenderTexture(
+				*m_texture,
+				pos.x,
+				pos.y,
+				scale.x,
+				scale.y);
+		}
 	}
+
 }

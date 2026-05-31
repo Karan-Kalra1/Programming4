@@ -13,6 +13,32 @@
 #include <algorithm>
 #include "MiniginTime.h"
 
+
+
+
+glm::ivec2 digger::EnemyComponent::FindRoamTarget(bool canDig) const
+{
+	static constexpr glm::ivec2 dirs[4]
+	{
+		{ 1, 0 },
+		{ -1, 0 },
+		{ 0, 1 },
+		{ 0, -1 }
+	};
+
+	const auto start = GetGridPosition();
+
+	for (const auto& dir : dirs)
+	{
+		const auto next = start + dir;
+
+		if (CanMoveTo(next, canDig))
+			return next;
+	}
+
+	return start;
+}
+
 namespace
 {
 	struct Vec2Hash
@@ -107,6 +133,15 @@ void digger::EnemyComponent::UpdateSmoothMovement()
 	else
 	{
 		m_WorldPosition += glm::normalize(toTarget) * moveDistance;
+	}
+
+	if (m_CanDigCurrentMove && m_Manager)
+	{
+		const glm::ivec2 direction = m_TargetGrid - m_CurrentGrid;
+
+		m_Manager->DigAtWorldPosition(
+			m_WorldPosition + glm::vec2{ 32.f, 32.f },
+			direction);
 	}
 
 	if (auto* tr = GetGameObject()->GetComponent<dae::TransformComponent>())
@@ -205,7 +240,22 @@ void digger::EnemyComponent::MoveTowardPlayer(bool canDig)
 	}
 
 	if (!found)
+	{
+		const glm::ivec2 roamTarget = FindRoamTarget(canDig);
+
+		if (roamTarget == start)
+			return;
+
+		m_TargetGrid = roamTarget;
+		m_TargetWorldPosition = GridToWorld(
+			m_TargetGrid,
+			m_Manager->GetTileSize(),
+			m_Manager->GetMapOffset());
+		
+		m_CanDigCurrentMove = canDig;
+		m_IsMoving = true;
 		return;
+	}
 
 	glm::ivec2 current = goal;
 
@@ -221,9 +271,8 @@ void digger::EnemyComponent::MoveTowardPlayer(bool canDig)
 		m_Manager->GetTileSize(),
 		m_Manager->GetMapOffset());
 
-	if (canDig)
-		DigTile(m_TargetGrid);
-
+	
+	m_CanDigCurrentMove = canDig;
 	m_IsMoving = true;
 }
 
@@ -246,4 +295,15 @@ void digger::EnemyComponent::RegisterEnemyCollision()
 void digger::EnemyComponent::ResetCollisionCounter()
 {
 	m_CrossCounter = 0;
+}
+
+void digger::EnemyComponent::Kill()
+{
+	if (m_IsDead)
+		return;
+
+	m_IsDead = true;
+
+	if (m_Manager)
+		m_Manager->KillEnemy(this);
 }

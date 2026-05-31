@@ -20,6 +20,16 @@ namespace dae
 
 		void RenderTexture(const Texture2D& texture, float x, float y) const;
 		void RenderTexture(const Texture2D& texture, float x, float y, float width, float height) const;
+
+		void RenderTextureRotated(
+			const Texture2D& texture,
+			float x,
+			float y,
+			float scaleX,
+			float scaleY,
+			double angle,
+			bool flipX,
+			bool flipY) const;
 		void RenderTextureSized(
 			const Texture2D& texture,
 			float x,

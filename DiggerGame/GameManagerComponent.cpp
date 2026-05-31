@@ -13,6 +13,8 @@
 #include "EventBus.h"
 #include "ServiceLocator.h"
 #include "GridMovementComponent.h"
+#include "MiniginTime.h"
+#include "FireballComponent.h"
 
 #include <memory>
 #include <iostream>
@@ -61,6 +63,11 @@ void digger::GameManagerComponent::LoadLevel(int index)
 
 	m_LevelData = LevelLoader::Load(path);
 	SpawnLevel(m_LevelData);
+
+	m_TotalEnemiesThisStage = 3 + m_CurrentLevel * 2;
+	m_EnemiesRemainingToSpawn = m_TotalEnemiesThisStage;
+	m_EnemiesAlive = 0;
+	m_EnemySpawnTimer = 0.f;
 }
 
 void digger::GameManagerComponent::SkipLevel()
@@ -75,6 +82,25 @@ void digger::GameManagerComponent::Update()
 		m_ShouldLoadNextLevel = false;
 		LoadLevel(m_CurrentLevel + 1);
 	}
+
+	if (m_EnemiesRemainingToSpawn > 0)
+	{
+		m_EnemySpawnTimer += dae::MiniginTime::GetDeltaTime();
+
+		if (m_EnemySpawnTimer >= m_EnemySpawnInterval)
+		{
+			m_EnemySpawnTimer = 0.f;
+			SpawnEnemy();
+		}
+	}
+
+	if (m_EnemiesRemainingToSpawn <= 0 && m_EnemiesAlive <= 0)
+	{
+		m_ShouldLoadNextLevel = true;
+	}
+
+	if (m_FireballCooldownTimer > 0.f)
+		m_FireballCooldownTimer -= dae::MiniginTime::GetDeltaTime();
 
 	CheckEnemyCrossings();
 }
@@ -175,7 +201,7 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 
 			DirtTile dirtTile{};
 
-			const int subdivisions = 4;
+			const int subdivisions = 16;
 			const float pieceSize =
 				static_cast<float>(m_TileSize) / static_cast<float>(subdivisions);
 
@@ -234,7 +260,7 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 		m_Scene->Add(std::move(diamond));
 	}
 
-	for (const auto& enemyPos : data.enemies)
+	/*for (const auto& enemyPos : data.enemies)
 	{
 		auto enemy = std::make_unique<dae::GameObject>();
 		auto* enemyPtr = enemy.get();
@@ -252,6 +278,9 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 		m_LevelObjects.push_back(enemyPtr);
 		m_Scene->Add(std::move(enemy));
 	}
+	*/
+
+	m_EnemySpawn = data.enemySpawn;
 }
 
 std::string digger::GameManagerComponent::MakeTileKey(const glm::ivec2& pos) const
@@ -311,69 +340,6 @@ void digger::GameManagerComponent::DigTile(const glm::ivec2& pos)
 	m_LevelData.tiles[pos.y][pos.x] = '.';
 }
 
-void digger::GameManagerComponent::DigTilePartial(
-	const glm::ivec2& pos,
-	const glm::ivec2& direction)
-{
-	if (!IsDirt(pos))
-		return;
-
-	auto key = MakeTileKey(pos);
-	auto it = m_DirtTiles.find(key);
-
-	if (it == m_DirtTiles.end())
-		return;
-
-	auto& tile = it->second;
-
-	auto hidePiece = [&](int index)
-		{
-			if (tile.removed[index])
-				return;
-
-			tile.removed[index] = true;
-
-			if (auto* obj = tile.pieces[index])
-			{
-				if (auto* tr = obj->GetComponent<dae::TransformComponent>())
-					tr->SetLocalPosition(-5000.f, -5000.f);
-			}
-		};
-
-	if (direction.x > 0)
-	{
-		hidePiece(0);
-		hidePiece(2);
-	}
-	else if (direction.x < 0)
-	{
-		hidePiece(1);
-		hidePiece(3);
-	}
-	else if (direction.y > 0)
-	{
-		hidePiece(0);
-		hidePiece(1);
-	}
-	else if (direction.y < 0)
-	{
-		hidePiece(2);
-		hidePiece(3);
-	}
-
-	bool fullyRemoved =
-		tile.removed[0] &&
-		tile.removed[1] &&
-		tile.removed[2] &&
-		tile.removed[3];
-
-	if (fullyRemoved)
-	{
-		m_LevelData.tiles[pos.y][pos.x] = '.';
-	}
-}
-
-
 
 
 glm::ivec2 digger::GameManagerComponent::GetPlayerGridPosition() const
@@ -403,6 +369,8 @@ void digger::GameManagerComponent::DamagePlayer()
       auto* grid = m_Player->GetComponent<GridMovementComponent>();
 		if (grid)
 		 grid->SetGridPosition(m_PlayerSpawn);
+
+		ResetEnemiesAfterPlayerDeath();
 }
 
 void digger::GameManagerComponent::RegisterEnemy(EnemyComponent* enemy)
@@ -449,11 +417,21 @@ void digger::GameManagerComponent::DigAtWorldPosition(
 	const glm::vec2& worldPos,
 	const glm::ivec2&)
 {
+	const float r = m_DigRadius;
+
 	DigAtPoint(worldPos);
-	DigAtPoint(worldPos + glm::vec2{ m_DigRadius, 0.f });
-	DigAtPoint(worldPos + glm::vec2{ -m_DigRadius, 0.f });
-	DigAtPoint(worldPos + glm::vec2{ 0.f,  m_DigRadius });
-	DigAtPoint(worldPos + glm::vec2{ 0.f, -m_DigRadius });
+
+	DigAtPoint(worldPos + glm::vec2{ r, 0.f });
+	DigAtPoint(worldPos + glm::vec2{ -r, 0.f });
+	DigAtPoint(worldPos + glm::vec2{ 0.f, r });
+	DigAtPoint(worldPos + glm::vec2{ 0.f, -r });
+
+	const float diagonal = r * 0.7071f;
+
+	DigAtPoint(worldPos + glm::vec2{ diagonal, diagonal });
+	DigAtPoint(worldPos + glm::vec2{ -diagonal, diagonal });
+	DigAtPoint(worldPos + glm::vec2{ diagonal, -diagonal });
+	DigAtPoint(worldPos + glm::vec2{ -diagonal, -diagonal });
 }
 
 glm::vec2 digger::GameManagerComponent::GetPlayerWorldPosition() const
@@ -493,14 +471,14 @@ void digger::GameManagerComponent::DigAtPoint(const glm::vec2& point)
 
 	auto& tile = it->second;
 
-	constexpr int subdivisions = 4;
+	constexpr int subdivisions = 16;
 	const float pieceSize =
 		static_cast<float>(m_TileSize) / static_cast<float>(subdivisions);
 
 	const float tileWorldX = m_MapOffset.x + static_cast<float>(gridX * m_TileSize);
 	const float tileWorldY = m_MapOffset.y + static_cast<float>(gridY * m_TileSize);
 
-	const float digRadius = 12.0f;
+	const float digRadius = 16.0f;
 	const float digRadiusSq = digRadius * digRadius;
 
 	auto removePiece = [&](int index)
@@ -536,16 +514,227 @@ void digger::GameManagerComponent::DigAtPoint(const glm::vec2& point)
 		}
 	}
 
-	bool fullyRemoved = true;
+	int removedCount = 0;
+
 	for (bool removed : tile.removed)
 	{
-		if (!removed)
-		{
-			fullyRemoved = false;
-			break;
-		}
+		if (removed)
+			++removedCount;
 	}
 
-	if (fullyRemoved)
+	const int requiredRemoved =
+		static_cast<int>(DirtPieceCount * 0.95f);
+
+	if (removedCount >= requiredRemoved)
+	{
+		for (int i = 0; i < DirtPieceCount; ++i)
+		{
+			if (!tile.removed[i])
+			{
+				tile.removed[i] = true;
+
+				if (auto* obj = tile.pieces[i])
+				{
+					if (auto* tr = obj->GetComponent<dae::TransformComponent>())
+						tr->SetLocalPosition(-5000.f, -5000.f);
+				}
+			}
+		}
+
 		m_LevelData.tiles[tilePos.y][tilePos.x] = '.';
+	}
+}
+
+
+void digger::GameManagerComponent::SpawnEnemy()
+{
+	if (m_EnemiesRemainingToSpawn <= 0)
+		return;
+
+	auto enemy = std::make_unique<dae::GameObject>();
+	auto* enemyPtr = enemy.get();
+
+	enemy->AddComponent<dae::TransformComponent>(enemyPtr);
+
+	enemy->AddComponent<dae::RenderComponent>(
+		enemyPtr,
+		dae::ResourceManager::GetInstance().LoadTexture("Nobbin.png"));
+
+	auto* enemyComp = enemy->AddComponent<EnemyComponent>(enemyPtr, this);
+	enemyComp->SetGridPosition(m_EnemySpawn);
+
+	RegisterEnemy(enemyComp);
+
+	m_LevelObjects.push_back(enemyPtr);
+	m_EnemiesAlive++;
+	m_EnemiesRemainingToSpawn--;
+
+	m_Scene->Add(std::move(enemy));
+}
+
+
+void digger::GameManagerComponent::KillEnemy(EnemyComponent* enemy)
+{
+	if (!enemy)
+		return;
+
+	auto* enemyObject = enemy->GetGameObject();
+
+	m_Enemies.erase(
+		std::remove(m_Enemies.begin(), m_Enemies.end(), enemy),
+		m_Enemies.end());
+
+	m_LevelObjects.erase(
+		std::remove(m_LevelObjects.begin(), m_LevelObjects.end(), enemyObject),
+		m_LevelObjects.end());
+
+	m_Scene->Remove(*enemyObject);
+
+	--m_EnemiesAlive;
+	if (m_EnemiesAlive < 0)
+		m_EnemiesAlive = 0;
+}
+
+
+void digger::GameManagerComponent::ResetEnemiesAfterPlayerDeath()
+{
+	for (auto* enemy : m_Enemies)
+	{
+		if (!enemy)
+			continue;
+
+		auto* enemyObject = enemy->GetGameObject();
+
+		m_LevelObjects.erase(
+			std::remove(m_LevelObjects.begin(), m_LevelObjects.end(), enemyObject),
+			m_LevelObjects.end());
+
+		m_Scene->Remove(*enemyObject);
+	}
+
+	m_Enemies.clear();
+
+	m_EnemiesRemainingToSpawn += m_EnemiesAlive;
+	m_EnemiesAlive = 0;
+	m_EnemySpawnTimer = 0.f;
+}
+
+float digger::GameManagerComponent::GetFireballCooldown() const
+{
+	return 0.5f + static_cast<float>(m_CurrentLevel) * 0.25f;
+}
+
+glm::ivec2 digger::GameManagerComponent::GetPlayerFacingDirection() const
+{
+	if (!m_Player)
+		return { 1, 0 };
+
+	auto* movement = m_Player->GetComponent<GridMovementComponent>();
+	if (!movement)
+		return { 1, 0 };
+
+	return movement->GetFacingDirection();
+}
+
+void digger::GameManagerComponent::ShootFireball()
+{
+	if (m_FireballCooldownTimer > 0.f)
+		return;
+
+	if (!m_Player)
+		return;
+
+	m_FireballCooldownTimer = GetFireballCooldown();
+
+	auto* tr = m_Player->GetComponent<dae::TransformComponent>();
+	if (!tr)
+		return;
+
+	const auto& pos3 = tr->GetWorldPosition();
+
+	glm::ivec2 facing = GetPlayerFacingDirection();
+	glm::vec2 direction{
+		static_cast<float>(facing.x),
+		static_cast<float>(facing.y)
+	};
+
+	auto fireball = std::make_unique<dae::GameObject>();
+	auto* fireballPtr = fireball.get();
+
+	auto* fireTr = fireball->AddComponent<dae::TransformComponent>(fireballPtr);
+
+	
+	glm::vec2 fireballPos{
+		pos3.x ,
+		pos3.y 
+	};
+
+	fireballPos += glm::vec2{
+		static_cast<float>(facing.x),
+		static_cast<float>(facing.y)
+	} * 28.f;
+
+	fireTr->SetLocalPosition(fireballPos.x, fireballPos.y);
+	
+	fireball->AddComponent<dae::RenderComponent>(
+		fireballPtr,
+		dae::ResourceManager::GetInstance().LoadTexture("Fireball.png"));
+
+	fireball->AddComponent<FireballComponent>(
+		fireballPtr,
+		this,
+		direction,
+		300.f);
+
+	m_Fireballs.push_back(fireballPtr);
+	m_LevelObjects.push_back(fireballPtr);
+
+	m_Scene->Add(std::move(fireball));
+}
+
+void digger::GameManagerComponent::CheckFireballHit(dae::GameObject* fireball)
+{
+	if (!fireball)
+		return;
+
+	auto* fireTr = fireball->GetComponent<dae::TransformComponent>();
+	if (!fireTr)
+		return;
+
+	const auto& firePos3 = fireTr->GetWorldPosition();
+	glm::vec2 firePos{ firePos3.x, firePos3.y };
+
+	for (auto* enemy : m_Enemies)
+	{
+		if (!enemy || enemy->IsDead())
+			continue;
+
+		auto* enemyTr = enemy->GetGameObject()->GetComponent<dae::TransformComponent>();
+		if (!enemyTr)
+			continue;
+
+		const auto& enemyPos3 = enemyTr->GetWorldPosition();
+		glm::vec2 enemyPos{ enemyPos3.x + 32.f, enemyPos3.y + 32.f };
+
+		const float dx = enemyPos.x - firePos.x;
+		const float dy = enemyPos.y - firePos.y;
+
+		const float radius = 32.f;
+
+		if ((dx * dx + dy * dy) <= radius * radius)
+		{
+			enemy->Kill();
+
+			m_Fireballs.erase(
+				std::remove(m_Fireballs.begin(), m_Fireballs.end(), fireball),
+				m_Fireballs.end());
+
+			m_LevelObjects.erase(
+				std::remove(m_LevelObjects.begin(), m_LevelObjects.end(), fireball),
+				m_LevelObjects.end());
+
+			m_Scene->Remove(*fireball);
+			return;
+		}
+	}
 }

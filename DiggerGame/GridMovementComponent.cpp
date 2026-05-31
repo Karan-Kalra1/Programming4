@@ -1,16 +1,11 @@
 #include "GridMovementComponent.h"
+
 #include "GameManagerComponent.h"
 #include "GameObject.h"
 #include "TransformComponent.h"
 #include "MiniginTime.h"
 
 #include <cmath>
-#include <algorithm>
-
-namespace
-{
-	constexpr float Epsilon = 1.5f;
-}
 
 digger::GridMovementComponent::GridMovementComponent(
 	dae::GameObject* owner,
@@ -26,24 +21,6 @@ digger::GridMovementComponent::GridMovementComponent(
 {
 }
 
-bool digger::GridMovementComponent::IsChangingAxis(const glm::ivec2& direction) const
-{
-	return m_CurrentDirection.x != direction.x &&
-		m_CurrentDirection.y != direction.y;
-}
-
-float digger::GridMovementComponent::DistanceToGridLine(bool horizontalMovement) const
-{
-	const float axis = horizontalMovement
-		? m_WorldPosition.x - m_Offset.x
-		: m_WorldPosition.y - m_Offset.y;
-
-	const float grid = std::round(axis / m_TileSize) * m_TileSize;
-	return grid - axis;
-}
-
-
-
 void digger::GridMovementComponent::SetGridPosition(const glm::ivec2& position)
 {
 	m_WorldPosition = {
@@ -51,8 +28,13 @@ void digger::GridMovementComponent::SetGridPosition(const glm::ivec2& position)
 		m_Offset.y + static_cast<float>(position.y * m_TileSize)
 	};
 
-	if (auto* tr = GetOwner()->GetComponent<dae::TransformComponent>())
-		tr->SetLocalPosition(m_WorldPosition.x, m_WorldPosition.y);
+	m_CurrentDirection = {};
+	m_LastDirection = {};
+	m_PendingTurnDirection = {};
+	m_AligningForTurn = false;
+	m_TurnKeyHeld = false;
+
+	UpdateTransform();
 }
 
 void digger::GridMovementComponent::PressDirection(const glm::ivec2& direction)
@@ -60,66 +42,66 @@ void digger::GridMovementComponent::PressDirection(const glm::ivec2& direction)
 	if (direction == glm::ivec2{})
 		return;
 
-	// If stopped
+	if (direction.x > 0) m_HeldRight = true;
+	if (direction.x < 0) m_HeldLeft = true;
+	if (direction.y > 0) m_HeldDown = true;
+	if (direction.y < 0) m_HeldUp = true;
+
 	if (m_CurrentDirection == glm::ivec2{})
 	{
-		// If we have no previous direction, start immediately
 		if (m_LastDirection == glm::ivec2{})
 		{
-			m_CurrentDirection = direction;
-			m_LastDirection = direction;
+			SetCurrentDirection(direction);
 			return;
 		}
 
-		const bool lastHorizontal = m_LastDirection.x != 0;
-		const bool newHorizontal = direction.x != 0;
-
-		// Same axis from stopped
-		if (lastHorizontal == newHorizontal)
+		if (IsSameAxis(m_LastDirection, direction))
 		{
-			m_CurrentDirection = direction;
-			m_LastDirection = direction;
+			SetCurrentDirection(direction);
 			return;
 		}
 
-		// align using last direction, then turn
-		m_CurrentDirection = m_LastDirection;
+		SetCurrentDirection(m_LastDirection);
 		m_PendingTurnDirection = direction;
 		m_AligningForTurn = true;
+		m_TurnKeyHeld = true;
 		return;
 	}
 
-	// Same direction
 	if (direction == m_CurrentDirection)
 		return;
 
-	const bool currentHorizontal = m_CurrentDirection.x != 0;
-	const bool newHorizontal = direction.x != 0;
-
-	// reverse, no grid alignment
-	if (currentHorizontal == newHorizontal)
+	if (IsSameAxis(m_CurrentDirection, direction))
 	{
-		m_CurrentDirection = direction;
-		m_LastDirection = direction;
-		m_AligningForTurn = false;
+		SetCurrentDirection(direction);
 		m_PendingTurnDirection = {};
+		m_AligningForTurn = false;
+		m_TurnKeyHeld = false;
 		return;
 	}
 
-	// Axis change: align first, then turn
 	m_PendingTurnDirection = direction;
 	m_AligningForTurn = true;
+	m_TurnKeyHeld = true;
 }
 
 void digger::GridMovementComponent::ReleaseDirection(const glm::ivec2& direction)
 {
-	if (direction != m_CurrentDirection)
-		return;
+	if (direction.x > 0) m_HeldRight = false;
+	if (direction.x < 0) m_HeldLeft = false;
+	if (direction.y > 0) m_HeldDown = false;
+	if (direction.y < 0) m_HeldUp = false;
 
-	m_LastDirection = m_CurrentDirection;
-	m_CurrentDirection = {};
-	m_AligningForTurn = false;
-	m_PendingTurnDirection = {};
+	if (direction == m_PendingTurnDirection)
+	{
+		m_TurnKeyHeld = false;
+	}
+
+	if (direction == m_CurrentDirection && !m_AligningForTurn)
+	{
+		m_LastDirection = m_CurrentDirection;
+		m_CurrentDirection = {};
+	}
 }
 
 void digger::GridMovementComponent::Update()
@@ -130,9 +112,6 @@ void digger::GridMovementComponent::Update()
 		return;
 
 	const float moveDistance = m_Speed * dt;
-
-	
-	// Align before turning
 
 	if (m_AligningForTurn)
 	{
@@ -147,7 +126,6 @@ void digger::GridMovementComponent::Update()
 			: m_Offset.y;
 
 		const float localAxis = axis - offsetAxis;
-
 		const float tileSize = static_cast<float>(m_TileSize);
 		const float gridValue = localAxis / tileSize;
 
@@ -159,16 +137,25 @@ void digger::GridMovementComponent::Update()
 			targetGridLocal = std::floor(gridValue) * tileSize;
 
 		const float targetAxis = offsetAxis + targetGridLocal;
-
 		const float distanceToGrid = targetAxis - axis;
 
 		if (std::abs(distanceToGrid) <= moveDistance)
 		{
 			axis = targetAxis;
 
-			m_CurrentDirection = m_PendingTurnDirection;
+			if (m_PendingTurnDirection != glm::ivec2{} && m_TurnKeyHeld)
+			{
+				SetCurrentDirection(m_PendingTurnDirection);
+			}
+			else
+			{
+				m_LastDirection = m_CurrentDirection;
+				m_CurrentDirection = {};
+			}
+
 			m_PendingTurnDirection = {};
 			m_AligningForTurn = false;
+			m_TurnKeyHeld = false;
 		}
 		else
 		{
@@ -176,23 +163,12 @@ void digger::GridMovementComponent::Update()
 			axis += sign * moveDistance;
 		}
 
-		if (m_Manager)
-		{
-			m_Manager->DigAtWorldPosition(
-				m_WorldPosition + glm::vec2{ 32.f, 32.f },
-				m_CurrentDirection);
-		}
-
-		if (auto* tr = GetOwner()->GetComponent<dae::TransformComponent>())
-			tr->SetLocalPosition(m_WorldPosition.x, m_WorldPosition.y);
-
+		Dig();
+		UpdateTransform();
 		return;
 	}
 
-	
-	// Normal free movement
-
-	glm::vec2 movement{
+	const glm::vec2 movement{
 		static_cast<float>(m_CurrentDirection.x),
 		static_cast<float>(m_CurrentDirection.y)
 	};
@@ -210,26 +186,8 @@ void digger::GridMovementComponent::Update()
 
 	m_WorldPosition = nextWorldPosition;
 
-	if (m_Manager)
-	{
-		m_Manager->DigAtWorldPosition(
-			m_WorldPosition + glm::vec2{ 32.f, 32.f },
-			m_CurrentDirection);
-	}
-
-	if (auto* tr = GetOwner()->GetComponent<dae::TransformComponent>())
-		tr->SetLocalPosition(m_WorldPosition.x, m_WorldPosition.y);
-}
-
-
-
-
-bool digger::GridMovementComponent::IsDirectionChange(const glm::ivec2& newDirection) const
-{
-	if (m_CurrentDirection == glm::ivec2{})
-		return false;
-
-	return newDirection != m_CurrentDirection;
+	Dig();
+	UpdateTransform();
 }
 
 glm::ivec2 digger::GridMovementComponent::GetGridPosition() const
@@ -239,8 +197,100 @@ glm::ivec2 digger::GridMovementComponent::GetGridPosition() const
 
 glm::ivec2 digger::GridMovementComponent::WorldToGrid(const glm::vec2& world) const
 {
-	const int x = static_cast<int>(std::round((world.x - m_Offset.x) / static_cast<float>(m_TileSize)));
-	const int y = static_cast<int>(std::round((world.y - m_Offset.y) / static_cast<float>(m_TileSize)));
+	const int x = static_cast<int>(
+		std::round((world.x - m_Offset.x) / static_cast<float>(m_TileSize)));
+
+	const int y = static_cast<int>(
+		std::round((world.y - m_Offset.y) / static_cast<float>(m_TileSize)));
 
 	return { x, y };
+}
+
+bool digger::GridMovementComponent::IsSameAxis(const glm::ivec2& a, const glm::ivec2& b) const
+{
+	if (a == glm::ivec2{} || b == glm::ivec2{})
+		return false;
+
+	const bool aHorizontal = a.x != 0;
+	const bool bHorizontal = b.x != 0;
+
+	return aHorizontal == bHorizontal;
+}
+
+bool digger::GridMovementComponent::IsDirectionHeld(const glm::ivec2& direction) const
+{
+	if (direction.x > 0) return m_HeldRight;
+	if (direction.x < 0) return m_HeldLeft;
+	if (direction.y > 0) return m_HeldDown;
+	if (direction.y < 0) return m_HeldUp;
+
+	return false;
+}
+
+void digger::GridMovementComponent::SetCurrentDirection(const glm::ivec2& direction)
+{
+	m_CurrentDirection = direction;
+
+	if (direction != glm::ivec2{})
+	{
+		m_LastDirection = direction;
+		m_FacingDirection = direction;
+	}
+		
+
+	ApplyRotation();
+}
+
+void digger::GridMovementComponent::ApplyRotation()
+{
+	auto* transform = GetOwner()->GetComponent<dae::TransformComponent>();
+	if (!transform)
+		return;
+
+	transform->SetRotation(0.0);
+	transform->SetFlipX(false);
+	transform->SetFlipY(false);
+
+	if (m_CurrentDirection.x > 0)
+	{
+		// right
+		transform->SetRotation(0.0);
+		transform->SetFlipX(false);
+	}
+	else if (m_CurrentDirection.x < 0)
+	{
+		// left
+		transform->SetRotation(0.0);
+		transform->SetFlipX(true);
+	}
+	else if (m_CurrentDirection.y < 0)
+	{
+		// up
+		transform->SetRotation(-90.0);
+		transform->SetFlipX(false);
+		transform->SetFlipY(false);
+	}
+	else if (m_CurrentDirection.y > 0)
+	{
+		// down
+		transform->SetRotation(-90.0);
+		transform->SetFlipX(true);
+		//transform->SetFlipY(true);
+	}
+}
+
+void digger::GridMovementComponent::UpdateTransform()
+{
+	if (auto* transform = GetOwner()->GetComponent<dae::TransformComponent>())
+		transform->SetLocalPosition(m_WorldPosition.x, m_WorldPosition.y);
+}
+
+void digger::GridMovementComponent::Dig()
+{
+	if (!m_Manager)
+		return;
+
+	m_Manager->DigAtWorldPosition(
+		m_WorldPosition + m_PlayerCenterOffset,
+		m_CurrentDirection);
 }
