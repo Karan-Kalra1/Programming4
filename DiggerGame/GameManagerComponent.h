@@ -48,7 +48,6 @@ namespace digger
 		void ShootFireball();
 		void CheckFireballHit(dae::GameObject* fireball);
 		glm::ivec2 GetPlayerFacingDirection() const;
-
 		void DigAtPoint(const glm::vec2& point);
 	private:
 		void ClearLevel();
@@ -89,6 +88,8 @@ namespace digger
 		void SpawnEnemy();
 		
 		void ResetEnemiesAfterPlayerDeath();
+		bool IsBlockingTileForFireball(const glm::ivec2& pos) const;
+		void RemoveFireball(dae::GameObject* fireball);
 
 		glm::ivec2 m_EnemySpawn{};
 		int m_EnemiesRemainingToSpawn{};
@@ -97,6 +98,7 @@ namespace digger
 
 		float m_EnemySpawnTimer{};
 		float m_EnemySpawnInterval{ 2.0f };
+
 
 		float m_FireballCooldownTimer{};
 		std::vector<dae::GameObject*> m_Fireballs{};

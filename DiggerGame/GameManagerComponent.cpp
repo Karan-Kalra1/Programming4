@@ -692,6 +692,37 @@ void digger::GameManagerComponent::ShootFireball()
 	m_Scene->Add(std::move(fireball));
 }
 
+bool digger::GameManagerComponent::IsBlockingTileForFireball(const glm::ivec2& pos) const
+{
+	if (pos.x < 0 || pos.y < 0)
+		return true;
+
+	if (pos.y >= m_LevelData.height || pos.x >= m_LevelData.width)
+		return true;
+
+	const char tile = m_LevelData.tiles[pos.y][pos.x];
+
+	// Dirt or solid wall blocks fireball
+	return tile == '#' || tile == 'X';
+}
+
+void digger::GameManagerComponent::RemoveFireball(dae::GameObject* fireball)
+{
+	if (!fireball)
+		return;
+
+	m_Fireballs.erase(
+		std::remove(m_Fireballs.begin(), m_Fireballs.end(), fireball),
+		m_Fireballs.end());
+
+	m_LevelObjects.erase(
+		std::remove(m_LevelObjects.begin(), m_LevelObjects.end(), fireball),
+		m_LevelObjects.end());
+
+	m_Scene->Remove(*fireball);
+}
+
+
 void digger::GameManagerComponent::CheckFireballHit(dae::GameObject* fireball)
 {
 	if (!fireball)
@@ -702,38 +733,52 @@ void digger::GameManagerComponent::CheckFireballHit(dae::GameObject* fireball)
 		return;
 
 	const auto& firePos3 = fireTr->GetWorldPosition();
-	glm::vec2 firePos{ firePos3.x, firePos3.y };
 
+	glm::vec2 fireCenter{
+		firePos3.x + 12.f,
+		firePos3.y + 12.f
+	};
+
+	const glm::ivec2 fireGrid{
+		static_cast<int>(std::floor((fireCenter.x - m_MapOffset.x) / static_cast<float>(m_TileSize))),
+		static_cast<int>(std::floor((fireCenter.y - m_MapOffset.y) / static_cast<float>(m_TileSize)))
+	};
+
+	// Hit dirt/wall/out-of-bounds
+	if (IsBlockingTileForFireball(fireGrid))
+	{
+		RemoveFireball(fireball);
+		return;
+	}
+
+	// Hit enemy
 	for (auto* enemy : m_Enemies)
 	{
 		if (!enemy || enemy->IsDead())
 			continue;
 
-		auto* enemyTr = enemy->GetGameObject()->GetComponent<dae::TransformComponent>();
+		auto* enemyTr =
+			enemy->GetGameObject()->GetComponent<dae::TransformComponent>();
+
 		if (!enemyTr)
 			continue;
 
 		const auto& enemyPos3 = enemyTr->GetWorldPosition();
-		glm::vec2 enemyPos{ enemyPos3.x + 32.f, enemyPos3.y + 32.f };
 
-		const float dx = enemyPos.x - firePos.x;
-		const float dy = enemyPos.y - firePos.y;
+		glm::vec2 enemyCenter{
+			enemyPos3.x + 32.f,
+			enemyPos3.y + 32.f
+		};
+
+		const float dx = enemyCenter.x - fireCenter.x;
+		const float dy = enemyCenter.y - fireCenter.y;
 
 		const float radius = 32.f;
 
 		if ((dx * dx + dy * dy) <= radius * radius)
 		{
 			enemy->Kill();
-
-			m_Fireballs.erase(
-				std::remove(m_Fireballs.begin(), m_Fireballs.end(), fireball),
-				m_Fireballs.end());
-
-			m_LevelObjects.erase(
-				std::remove(m_LevelObjects.begin(), m_LevelObjects.end(), fireball),
-				m_LevelObjects.end());
-
-			m_Scene->Remove(*fireball);
+			RemoveFireball(fireball);
 			return;
 		}
 	}
