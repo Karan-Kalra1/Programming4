@@ -1,7 +1,7 @@
 #pragma once
 #include "Component.h"
 #include <glm/glm.hpp>
-
+#include <vector>
 
 
 namespace dae { class GameObject; }
@@ -64,7 +64,7 @@ namespace digger
 		glm::vec2 m_WorldPosition{};
 		glm::vec2 m_TargetWorldPosition{};
 		int m_DraggedPlayerIndex{ -1 };
-		EnemyComponent* m_DraggedEnemy{};
+		std::vector<EnemyComponent*> m_DraggedEnemies{};
 
 		bool m_HasFallen{};
 

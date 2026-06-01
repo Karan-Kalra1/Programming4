@@ -23,6 +23,7 @@
 #include <memory>
 #include <iostream>
 #include <limits>
+#include <optional>
 
 namespace
 {
@@ -859,6 +860,8 @@ void digger::GameManagerComponent::Update()
 		m_ShouldLoadNextLevel = true;
 	}
 
+	if (m_Mode == GameMode::Versus)
+		CheckVersusCollision();
 
 	CheckEnemyCrossings();
 }
@@ -972,20 +975,49 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 		SpawnDiggerPlayer(
 			0,
 			data.playerSpawn,
-			"Digger.png");
+			"Digger.png",
+			PlayerRole::Digger);
 	}
 
-	if (m_Mode == GameMode::Coop && m_PlayerAlive[1])
+	// P2 depends on mode
+	if (m_Mode == GameMode::Coop)
 	{
-		const glm::ivec2 p2Spawn =
-			data.hasPlayer2Spawn
-			? data.player2Spawn
-			: data.playerSpawn + glm::ivec2{ 1, 0 };
+		if (m_PlayerAlive[1])
+		{
+			const glm::ivec2 p2Spawn =
+				data.hasPlayer2Spawn
+				? data.player2Spawn
+				: data.playerSpawn + glm::ivec2{ 1, 0 };
 
-		SpawnDiggerPlayer(
-			1,
-			p2Spawn,
-			"Digger.png");
+			SpawnDiggerPlayer(
+				1,
+				p2Spawn,
+				"Digger.png",
+				PlayerRole::Digger);
+		}
+	}
+	else if (m_Mode == GameMode::Versus)
+	{
+		if (m_PlayerAlive[1])
+		{
+			const glm::ivec2 p2Spawn =
+				data.hasPlayer2Spawn
+				? data.player2Spawn
+				: data.enemySpawn;
+
+			SpawnDiggerPlayer(
+				1,
+				p2Spawn,
+				"Nobbin.png",
+				PlayerRole::VersusEnemy);
+		}
+	}
+
+	if (m_Mode == GameMode::Versus)
+	{
+		m_EnemiesRemainingToSpawn = 0;
+		m_EnemiesAlive = 0;
+		m_EnemySpawnTimer = 0.f;
 	}
 
 	m_DirtTiles.clear();
@@ -997,7 +1029,7 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 	{
 		for (int x = 0; x < data.width; ++x)
 		{
-			if (data.tiles[y][x] != '#')
+			if (data.tiles[y][x] != '#' && data.tiles[y][x] != 'X')
 				continue;
 
 			const glm::ivec2 gridPos{ x, y };
@@ -1113,6 +1145,8 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 	m_EnemySpawn = data.enemySpawn;
 }
 
+
+
 std::string digger::GameManagerComponent::MakeTileKey(const glm::ivec2& pos) const
 {
 	return std::to_string(pos.x) + "," + std::to_string(pos.y);
@@ -1129,6 +1163,17 @@ bool digger::GameManagerComponent::IsDirt(const glm::ivec2& pos) const
 	return m_LevelData.tiles[pos.y][pos.x] == '#';
 }
 
+bool digger::GameManagerComponent::IsSolidWall(const glm::ivec2& pos) const
+{
+	if (pos.x < 0 || pos.y < 0)
+		return true;
+
+	if (pos.y >= m_LevelData.height || pos.x >= m_LevelData.width)
+		return true;
+
+	return m_LevelData.tiles[pos.y][pos.x] == 'X';
+}
+
 bool digger::GameManagerComponent::CanEnemyMoveTo(const glm::ivec2& pos, bool canDig) const
 {
 	if (pos.x < 0 || pos.y < 0)
@@ -1138,6 +1183,9 @@ bool digger::GameManagerComponent::CanEnemyMoveTo(const glm::ivec2& pos, bool ca
 		return false;
 
 	const char tile = m_LevelData.tiles[pos.y][pos.x];
+
+	if (tile == 'X')
+		return false;
 
 	if (tile == '#')
 		return canDig;
@@ -1269,6 +1317,13 @@ void digger::GameManagerComponent::FinishPlayerDeathSequence()
 			if (auto* movement = player.object->GetComponent<GridMovementComponent>())
 				movement->ReleaseAllDirections(); 
 		}
+
+		if (m_Mode == GameMode::Versus)
+		{
+			GameOver();
+			return;
+		}
+
 
 		if (AreAllPlayersDead())
 		{
@@ -1499,8 +1554,15 @@ void digger::GameManagerComponent::DigAtPoint(const glm::vec2& point)
 void digger::GameManagerComponent::SpawnDiggerPlayer(
 	int playerIndex,
 	const glm::ivec2& spawn,
-	const std::string& textureFile)
+	const std::string& textureFile,
+	PlayerRole role)
 {
+	if (playerIndex < 0 || playerIndex >= 2)
+		return;
+
+	if (!m_PlayerAlive[static_cast<size_t>(playerIndex)])
+		return;
+
 	auto player = std::make_unique<dae::GameObject>();
 	auto* playerPtr = player.get();
 
@@ -1515,6 +1577,12 @@ void digger::GameManagerComponent::SpawnDiggerPlayer(
 
 	movement->SetGridPosition(spawn);
 
+	// Versus enemy should not dig dirt.
+	if (role == PlayerRole::VersusEnemy)
+	{
+		movement->SetCanDigDirt(false);
+		movement->SetCanEnterDirt(false);
+	}
 
 	player->AddComponent<dae::RenderComponent>(
 		playerPtr,
@@ -1540,7 +1608,8 @@ void digger::GameManagerComponent::SpawnDiggerPlayer(
 			m_PlayerAlive[static_cast<size_t>(playerIndex)],
 			false,
 			0.f,
-			0.f
+			0.f,
+			role
 	};
 
 	m_LevelObjects.push_back(playerPtr);
@@ -1562,28 +1631,31 @@ void digger::GameManagerComponent::RemovePlayerObservers()
 
 void digger::GameManagerComponent::SpawnEnemy()
 {
-	if (m_EnemiesRemainingToSpawn <= 0)
-		return;
+	if (m_Mode != GameMode::Versus)
+	{
+		if (m_EnemiesRemainingToSpawn <= 0)
+			return;
 
-	auto enemy = std::make_unique<dae::GameObject>();
-	auto* enemyPtr = enemy.get();
+		auto enemy = std::make_unique<dae::GameObject>();
+		auto* enemyPtr = enemy.get();
 
-	enemy->AddComponent<dae::TransformComponent>(enemyPtr);
+		enemy->AddComponent<dae::TransformComponent>(enemyPtr);
 
-	enemy->AddComponent<dae::RenderComponent>(
-		enemyPtr,
-		dae::ResourceManager::GetInstance().LoadTexture("Nobbin.png"));
+		enemy->AddComponent<dae::RenderComponent>(
+			enemyPtr,
+			dae::ResourceManager::GetInstance().LoadTexture("Nobbin.png"));
 
-	auto* enemyComp = enemy->AddComponent<EnemyComponent>(enemyPtr, this);
-	enemyComp->SetGridPosition(m_EnemySpawn);
+		auto* enemyComp = enemy->AddComponent<EnemyComponent>(enemyPtr, this);
+		enemyComp->SetGridPosition(m_EnemySpawn);
 
-	RegisterEnemy(enemyComp);
+		RegisterEnemy(enemyComp);
 
-	m_LevelObjects.push_back(enemyPtr);
-	m_EnemiesAlive++;
-	m_EnemiesRemainingToSpawn--;
+		m_LevelObjects.push_back(enemyPtr);
+		m_EnemiesAlive++;
+		m_EnemiesRemainingToSpawn--;
 
-	m_Scene->Add(std::move(enemy));
+		m_Scene->Add(std::move(enemy));
+	}
 }
 
 
@@ -1638,7 +1710,7 @@ void digger::GameManagerComponent::ResetEnemiesAfterPlayerDeath()
 
 float digger::GameManagerComponent::GetFireballCooldown() const
 {
-	return 0.5f + static_cast<float>(m_CurrentLevel) * 0.25f;
+	return 15.0f + static_cast<float>(m_CurrentLevel) * 5.0f;
 }
 
 
@@ -1651,6 +1723,9 @@ void digger::GameManagerComponent::ShootFireball(int playerIndex)
 		return;
 
 	auto& playerData = m_Players[static_cast<size_t>(playerIndex)];
+
+	if (playerData.role != PlayerRole::Digger)
+		return;
 
 	if (playerData.fireballCooldown > 0.f)
 		return;
@@ -1814,6 +1889,80 @@ void digger::GameManagerComponent::CheckFireballHit(dae::GameObject* fireball)
 			return;
 		}
 	}
+
+	if (m_Mode == GameMode::Versus)
+	{
+		for (int i = 0; i < static_cast<int>(m_Players.size()); ++i)
+		{
+			auto& player = m_Players[static_cast<size_t>(i)];
+
+			if (!player.alive || player.dying || !player.object)
+				continue;
+
+			if (player.role != PlayerRole::VersusEnemy)
+				continue;
+
+			auto* enemyTr =
+				player.object->GetComponent<dae::TransformComponent>();
+
+			if (!enemyTr)
+				continue;
+
+			const auto& enemyPos3 = enemyTr->GetWorldPosition();
+
+			glm::vec2 enemyCenter{
+				enemyPos3.x + 32.f,
+				enemyPos3.y + 32.f
+			};
+
+			const glm::vec2 diff = enemyCenter - fireCenter;
+
+			const float radius = 32.f;
+
+			if ((diff.x * diff.x + diff.y * diff.y) <= radius * radius)
+			{
+				DamagePlayer(i);
+				RemoveFireball(fireball);
+				return;
+			}
+		}
+	}
+}
+
+void digger::GameManagerComponent::CheckVersusCollision()
+{
+	if (m_Mode != GameMode::Versus)
+		return;
+
+	if (m_Players.size() < 2)
+		return;
+
+	const auto& p1 = m_Players[0];
+	const auto& p2 = m_Players[1];
+
+	if (!p1.alive || p1.dying || !p1.object)
+		return;
+
+	if (!p2.alive || p2.dying || !p2.object)
+		return;
+
+	if (p1.role != PlayerRole::Digger)
+		return;
+
+	if (p2.role != PlayerRole::VersusEnemy)
+		return;
+
+	const glm::vec2 p1Pos = GetPlayerWorldPosition(0);
+	const glm::vec2 p2Pos = GetPlayerWorldPosition(1);
+
+	const glm::vec2 diff = p1Pos - p2Pos;
+
+	const float radius = GetCollisionRadius();
+
+	if ((diff.x * diff.x + diff.y * diff.y) <= radius * radius)
+	{
+		DamagePlayer(0);
+	}
 }
 
 
@@ -1838,7 +1987,8 @@ bool digger::GameManagerComponent::CanMoneyBagMoveTo(const glm::ivec2& pos) cons
 	if (IsDirt(pos))
 		return false;
 
-	if (IsPlayerAtGridPosition(pos))
+	// Blocks P1, P2 co-op, and P2 versus enemy.
+	if (GetPlayerIndexAtGridPosition(pos) != -1)
 		return false;
 
 	if (HasEnemyAt(pos))
@@ -1869,7 +2019,7 @@ bool digger::GameManagerComponent::TryPushMoneyBagAt(
 {
 	const glm::ivec2 targetPos = bagPos + direction;
 
-	if (IsPlayerAtGridPosition(targetPos))
+	if (GetPlayerIndexAtGridPosition(targetPos) != -1)
 		return false;
 
 	if (HasEnemyAt(targetPos))
@@ -2023,9 +2173,9 @@ glm::ivec2 digger::GameManagerComponent::GetClosestAlivePlayerGridPosition(
 
 int digger::GameManagerComponent::GetPlayerIndexAtWorldPosition(
 	const glm::vec2& worldPos,
-	float radius) const
+	float radius,
+	std::optional<PlayerRole> requiredRole) const
 {
-
 	const float radiusSq = radius * radius;
 
 	for (int i = 0; i < static_cast<int>(m_Players.size()); ++i)
@@ -2033,6 +2183,9 @@ int digger::GameManagerComponent::GetPlayerIndexAtWorldPosition(
 		const auto& player = m_Players[static_cast<size_t>(i)];
 
 		if (!player.alive || player.dying || !player.object)
+			continue;
+
+		if (requiredRole.has_value() && player.role != requiredRole.value())
 			continue;
 
 		const glm::vec2 playerPos = GetPlayerWorldPosition(i);
@@ -2043,6 +2196,20 @@ int digger::GameManagerComponent::GetPlayerIndexAtWorldPosition(
 	}
 
 	return -1;
+}
+
+int digger::GameManagerComponent::GetPlayerIndexAtWorldPosition(
+	const glm::vec2& worldPos,
+	float radius) const
+{
+	return GetPlayerIndexAtWorldPosition(worldPos, radius, std::nullopt);
+}
+
+int digger::GameManagerComponent::GetDiggerPlayerIndexAtWorldPosition(
+	const glm::vec2& worldPos,
+	float radius) const
+{
+	return GetPlayerIndexAtWorldPosition(worldPos, radius, PlayerRole::Digger);
 }
 
 int digger::GameManagerComponent::GetPlayerIndexAtGridPosition(
@@ -2122,4 +2289,61 @@ bool digger::GameManagerComponent::AreAllPlayersDead() const
 	}
 
 	return true;
+}
+
+bool digger::GameManagerComponent::IsSolidForMoneyBag(
+	const glm::ivec2& pos) const
+{
+	if (pos.x < 0 || pos.y < 0)
+		return true;
+
+	if (pos.y >= m_LevelData.height || pos.x >= m_LevelData.width)
+		return true;
+
+	const char tile = m_LevelData.tiles[pos.y][pos.x];
+
+	if (tile == '#' || tile == 'X')
+		return true;
+
+	if (HasMoneyBagAt(pos))
+		return true;
+
+	return false;
+}
+
+std::vector<digger::EnemyComponent*> digger::GameManagerComponent::GetEnemiesAtWorldPosition(
+	const glm::vec2& worldPos,
+	float radius) const
+{
+	std::vector<EnemyComponent*> result{};
+
+	const float radiusSq = radius * radius;
+
+	for (auto* enemy : m_Enemies)
+	{
+		if (!enemy || enemy->IsDead())
+			continue;
+
+		auto* enemyObj = enemy->GetGameObject();
+		if (!enemyObj)
+			continue;
+
+		auto* tr = enemyObj->GetComponent<dae::TransformComponent>();
+		if (!tr)
+			continue;
+
+		const auto& pos3 = tr->GetWorldPosition();
+
+		glm::vec2 enemyCenter{
+			pos3.x + 32.f,
+			pos3.y + 32.f
+		};
+
+		const glm::vec2 diff = enemyCenter - worldPos;
+
+		if ((diff.x * diff.x + diff.y * diff.y) <= radiusSq)
+			result.push_back(enemy);
+	}
+
+	return result;
 }

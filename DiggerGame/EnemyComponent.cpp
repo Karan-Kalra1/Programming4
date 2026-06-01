@@ -84,6 +84,9 @@ void digger::EnemyComponent::Update()
 	if (m_Manager && m_Manager->IsGameplayFrozen())
 		return;
 
+	if (m_CrushedByBag)
+		return;
+
 	UpdateSmoothMovement();
 
 	if (m_State)
@@ -341,7 +344,7 @@ void digger::EnemyComponent::RegisterEnemyCollision()
 {
 	++m_CrossCounter;
 
-	if (m_CrossCounter >= 3)
+	if (m_CrossCounter >= 6)
 	{
 		m_CrossCounter = 0;
 		ChangeState(std::make_unique<HobbinState>());

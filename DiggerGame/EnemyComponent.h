@@ -46,6 +46,7 @@ namespace digger
 		void ResetCollisionCounter();
 
 		GameManagerComponent* GetManager() const { return m_Manager; }
+		void SetCrushedByBag(bool crushed) { m_CrushedByBag = crushed; }
 
 	private:
 		GameManagerComponent* m_Manager{};
@@ -61,6 +62,7 @@ namespace digger
 
 		glm::vec2 m_WorldPosition{};
 		glm::vec2 m_TargetWorldPosition{};
+		bool m_CrushedByBag{};
 
 		int m_CrossCounter{};
 	};

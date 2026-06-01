@@ -29,6 +29,12 @@ enum class GameScreenState
 	ShowingHighScores
 };
 
+enum class PlayerRole
+{
+	Digger,
+	VersusEnemy
+};
+
 struct PlayerRuntime
 {
 	dae::GameObject* object{};
@@ -42,6 +48,8 @@ struct PlayerRuntime
 
 	float damageCooldown{};
 	float fireballCooldown{};
+
+	PlayerRole role{ PlayerRole::Digger };
 };
 
 namespace digger
@@ -88,9 +96,20 @@ namespace digger
 
 
 		glm::ivec2 GetClosestAlivePlayerGridPosition(const glm::ivec2& fromGrid) const;
+
 		//int GetClosestAlivePlayerIndexToWorld(const glm::vec2& worldPos) const;
 		int GetPlayerIndexAtWorldPosition(const glm::vec2& worldPos, float radius) const;
 		int GetPlayerIndexAtGridPosition(const glm::ivec2& pos) const;
+		void CheckVersusCollision();
+
+		int GetDiggerPlayerIndexAtWorldPosition(
+			const glm::vec2& worldPos,
+			float radius) const;
+
+		int GetPlayerIndexAtWorldPosition(
+			const glm::vec2& worldPos,
+			float radius,
+			std::optional<PlayerRole> requiredRole) const;
 
 		void DamagePlayer(int playerIndex = 0);
 
@@ -99,7 +118,8 @@ namespace digger
 		void SpawnDiggerPlayer(
 			int playerIndex,
 			const glm::ivec2& spawn,
-			const std::string& textureFile);
+			const std::string& textureFile,
+			PlayerRole role = PlayerRole::Digger);
 
 		void RemovePlayerObservers();
 
@@ -115,7 +135,6 @@ namespace digger
 		float GetFireballCooldown() const;
 		void ShootFireball(int playerIndex = 0);
 		void CheckFireballHit(dae::GameObject* fireball);
-		glm::ivec2 GetPlayerFacingDirection() const;
 		void DigAtPoint(const glm::vec2& point);
 
 		bool HasDirtBelow(const glm::ivec2& pos) const;
@@ -126,6 +145,7 @@ namespace digger
 		void RegisterMoneyBag(MoneyBagComponent* bag);
 		void UnregisterMoneyBag(MoneyBagComponent* bag);
 		void CollectGold(dae::GameObject* gold);
+		bool IsSolidWall(const glm::ivec2& pos) const;
 
 		bool IsGameplayFrozen() const { return m_DeathSequenceActive || m_ScreenState != GameScreenState::Playing; }
 
@@ -139,6 +159,10 @@ namespace digger
 		void ShowStartMenu();
 		bool IsPlayerAlive(int playerIndex) const;
 		bool IsPlayerControllable(int playerIndex) const;
+		bool IsSolidForMoneyBag(const glm::ivec2& pos) const;
+		std::vector<EnemyComponent*> GetEnemiesAtWorldPosition(
+			const glm::vec2& worldPos,
+			float radius) const;
 
 	private:
 
@@ -235,7 +259,7 @@ namespace digger
 		LevelData m_LevelData{};
 
 		glm::vec2 m_PlayerCenterOffset{ 32.f, 32.f };
-		float m_DigRadius{ 16.f };
+		float m_DigRadius{ 20.f };
 
 		
 		glm::vec2 m_MapOffset{ -32.f, -32.f };
@@ -254,7 +278,7 @@ namespace digger
 		glm::vec2 m_PlayerDeathWorldPosition{};
 
 		float m_EnemySpawnTimer{};
-		float m_EnemySpawnInterval{ 2.0f };
+		float m_EnemySpawnInterval{ 4.0f };
 
 
 		

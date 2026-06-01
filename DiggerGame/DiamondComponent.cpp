@@ -21,7 +21,7 @@ void digger::DiamondComponent::Update()
 	};
 
 	const int playerIndex =
-		m_Manager->GetPlayerIndexAtWorldPosition(
+		m_Manager->GetDiggerPlayerIndexAtWorldPosition(
 			diamondCenter,
 			m_Manager->GetCollisionRadius());
 

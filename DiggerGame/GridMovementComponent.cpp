@@ -66,6 +66,7 @@ void digger::GridMovementComponent::PressDirection(const glm::ivec2& direction)
 		m_PendingTurnDirection = direction;
 		m_AligningForTurn = true;
 		m_TurnKeyHeld = true;
+		m_AlignToNearestGrid = true;
 		return;
 	}
 
@@ -84,6 +85,7 @@ void digger::GridMovementComponent::PressDirection(const glm::ivec2& direction)
 	m_PendingTurnDirection = direction;
 	m_AligningForTurn = true;
 	m_TurnKeyHeld = true;
+	m_AlignToNearestGrid = false;
 }
 
 void digger::GridMovementComponent::ReleaseDirection(const glm::ivec2& direction)
@@ -135,10 +137,17 @@ void digger::GridMovementComponent::Update()
 
 		float targetGridLocal{};
 
-		if (m_CurrentDirection.x > 0 || m_CurrentDirection.y > 0)
-			targetGridLocal = std::ceil(gridValue) * tileSize;
+		if (m_AlignToNearestGrid)
+		{
+			targetGridLocal = std::round(gridValue) * tileSize;
+		}
 		else
-			targetGridLocal = std::floor(gridValue) * tileSize;
+		{
+			if (m_CurrentDirection.x > 0 || m_CurrentDirection.y > 0)
+				targetGridLocal = std::ceil(gridValue) * tileSize;
+			else
+				targetGridLocal = std::floor(gridValue) * tileSize;
+		}
 
 		const float targetAxis = offsetAxis + targetGridLocal;
 		const float distanceToGrid = targetAxis - axis;
@@ -162,12 +171,24 @@ void digger::GridMovementComponent::Update()
 				nextWorldPosition.y += sign * moveDistance;
 		}
 
-		if (!CanOccupyPosition(nextWorldPosition))
+		const glm::ivec2 alignmentDirection =
+		{
+			movingHorizontally
+				? (nextWorldPosition.x > m_WorldPosition.x ? 1 : -1)
+				: 0,
+
+			movingHorizontally
+				? 0
+				: (nextWorldPosition.y > m_WorldPosition.y ? 1 : -1)
+		};
+
+		if (!CanMoveToWorldPosition(nextWorldPosition, alignmentDirection, false))
 		{
 			m_AligningForTurn = false;
 			m_PendingTurnDirection = {};
 			m_TurnKeyHeld = false;
 			m_CurrentDirection = {};
+			m_AlignToNearestGrid = false;
 			UpdateTransform();
 			return;
 		}
@@ -178,7 +199,18 @@ void digger::GridMovementComponent::Update()
 		{
 			if (m_PendingTurnDirection != glm::ivec2{} && m_TurnKeyHeld)
 			{
-				SetCurrentDirection(m_PendingTurnDirection);
+				if (CanMoveToWorldPosition(
+					m_WorldPosition,
+					m_PendingTurnDirection,
+					false))
+				{
+					SetCurrentDirection(m_PendingTurnDirection);
+				}
+				else
+				{
+					m_LastDirection = m_CurrentDirection;
+					m_CurrentDirection = {};
+				}
 			}
 			else
 			{
@@ -189,6 +221,7 @@ void digger::GridMovementComponent::Update()
 			m_PendingTurnDirection = {};
 			m_AligningForTurn = false;
 			m_TurnKeyHeld = false;
+			m_AlignToNearestGrid = false;
 		}
 
 		Dig();
@@ -204,20 +237,12 @@ void digger::GridMovementComponent::Update()
 	const glm::vec2 nextWorldPosition =
 		m_WorldPosition + movement * moveDistance;
 
-	if (m_Manager)
+	if (!CanMoveToWorldPosition(
+		nextWorldPosition,
+		m_CurrentDirection,
+		true))
 	{
-		const glm::ivec2 nextGrid = WorldToGrid(nextWorldPosition);
-
-		// Money bag check
-		if (m_Manager->HasMoneyBagAt(nextGrid))
-		{
-			if (!m_Manager->TryPushMoneyBagAt(nextGrid, m_CurrentDirection))
-				return;
-		}
-		else if (!m_Manager->CanPlayerMoveTo(nextGrid))
-		{
-			return;
-		}
+		return;
 	}
 
 	m_WorldPosition = nextWorldPosition;
@@ -341,12 +366,16 @@ void digger::GridMovementComponent::Dig()
 	if (!m_Manager)
 		return;
 
+	if (!m_CanDigDirt)
+		return;
+
 	m_Manager->DigAtWorldPosition(
 		m_WorldPosition + m_PlayerCenterOffset,
 		m_CurrentDirection);
 }
 
-bool digger::GridMovementComponent::CanOccupyPosition(const glm::vec2& worldPos) const
+bool digger::GridMovementComponent::CanOccupyPosition(
+	const glm::vec2& worldPos) const
 {
 	if (!m_Manager)
 		return true;
@@ -356,5 +385,69 @@ bool digger::GridMovementComponent::CanOccupyPosition(const glm::vec2& worldPos)
 	if (m_Manager->HasMoneyBagAt(grid))
 		return false;
 
+	if (!m_CanEnterDirt && m_Manager->IsDirt(grid))
+		return false;
+
 	return m_Manager->CanPlayerMoveTo(grid);
 }
+
+glm::ivec2 digger::GridMovementComponent::WorldPointToGrid(
+	const glm::vec2& worldPoint) const
+{
+	const int x = static_cast<int>(
+		std::floor((worldPoint.x - m_Offset.x) / static_cast<float>(m_TileSize)));
+
+	const int y = static_cast<int>(
+		std::floor((worldPoint.y - m_Offset.y) / static_cast<float>(m_TileSize)));
+
+	return { x, y };
+}
+
+glm::ivec2 digger::GridMovementComponent::GetFrontGridPosition(
+	const glm::vec2& worldPosition,
+	const glm::ivec2& direction) const
+{
+	const glm::vec2 center =
+		worldPosition + m_PlayerCenterOffset;
+
+	glm::vec2 frontPoint = center;
+
+	if (direction.x > 0)
+		frontPoint.x += m_CollisionRadius;
+	else if (direction.x < 0)
+		frontPoint.x -= m_CollisionRadius;
+	else if (direction.y > 0)
+		frontPoint.y += m_CollisionRadius;
+	else if (direction.y < 0)
+		frontPoint.y -= m_CollisionRadius;
+
+	return WorldPointToGrid(frontPoint);
+}
+
+bool digger::GridMovementComponent::CanMoveToWorldPosition(
+	const glm::vec2& worldPosition,
+	const glm::ivec2& direction,
+	bool allowPush)
+{
+	if (!m_Manager)
+		return true;
+
+	const glm::ivec2 frontGrid =
+		GetFrontGridPosition(worldPosition, direction);
+
+	// Money bag blocks movement unless pushed.
+	if (m_Manager->HasMoneyBagAt(frontGrid))
+	{
+		if (!allowPush)
+			return false;
+
+		return m_Manager->TryPushMoneyBagAt(frontGrid, direction);
+	}
+
+	// Versus enemy / non-digger cannot enter dirt.
+	if (!m_CanEnterDirt && m_Manager->IsDirt(frontGrid))
+		return false;
+
+	return m_Manager->CanPlayerMoveTo(frontGrid);
+}
+
