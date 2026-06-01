@@ -254,6 +254,11 @@ add_executable(${GAME_TARGET} ${GAME_TARGET_PARAM}
   DiggerGame/GridMovementComponent.cpp
   DiggerGame/FireballComponent.cpp
   DiggerGame/ShootFireballCommand.cpp
+  DiggerGame/MoneyBagComponent.cpp
+  DiggerGame/HighScoreManager.cpp
+  DiggerGame/HighScoreLetterCommand.cpp
+  DiggerGame/HighScoreCursorCommand.cpp
+  DiggerGame/HighScoreConfirmCommand.cpp
 )
 
 target_include_directories(${GAME_TARGET} PRIVATE

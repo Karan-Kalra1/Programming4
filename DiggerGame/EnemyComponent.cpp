@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include "MiniginTime.h"
-
+#include "MoneyBagComponent.h"
 
 
 
@@ -31,6 +31,14 @@ glm::ivec2 digger::EnemyComponent::FindRoamTarget(bool canDig) const
 	for (const auto& dir : dirs)
 	{
 		const auto next = start + dir;
+
+		if (m_Manager && m_Manager->HasMoneyBagAt(next))
+		{
+			if (dir.y == 0 && m_Manager->TryPushMoneyBagAt(next, dir))
+				return next;
+
+			continue;
+		}
 
 		if (CanMoveTo(next, canDig))
 			return next;
@@ -228,6 +236,10 @@ void digger::EnemyComponent::MoveTowardPlayer(bool canDig)
 		{
 			glm::ivec2 next = current + dir;
 
+			// Money bags are blockers during path search
+			if (m_Manager && m_Manager->HasMoneyBagAt(next))
+				continue;
+
 			if (!CanMoveTo(next, canDig))
 				continue;
 
@@ -264,7 +276,24 @@ void digger::EnemyComponent::MoveTowardPlayer(bool canDig)
 		current = cameFrom[current];
 	}
 
+
+
 	m_TargetGrid = current;
+
+	const glm::ivec2 moveDir = m_TargetGrid - start;
+
+	if (m_Manager && m_Manager->HasMoneyBagAt(m_TargetGrid))
+	{
+		if (moveDir.y != 0)
+			return;
+
+		if (!m_Manager->TryPushMoneyBagAt(m_TargetGrid, moveDir))
+			return;
+	}
+	else if (!CanMoveTo(m_TargetGrid, canDig))
+	{
+		return;
+	}
 
 	m_TargetWorldPosition = GridToWorld(
 		m_TargetGrid,

@@ -31,7 +31,7 @@ namespace digger
 
 	private:
 		glm::ivec2 WorldToGrid(const glm::vec2& world) const;
-
+		bool CanOccupyPosition(const glm::vec2& worldPos) const;
 		bool IsSameAxis(const glm::ivec2& a, const glm::ivec2& b) const;
 		bool IsDirectionHeld(const glm::ivec2& direction) const;
 

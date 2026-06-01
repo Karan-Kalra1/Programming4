@@ -4,6 +4,7 @@
 #include "GameObject.h"
 #include "TransformComponent.h"
 #include "MiniginTime.h"
+#include "MoneyBagComponent.h"
 
 #include <cmath>
 
@@ -117,13 +118,13 @@ void digger::GridMovementComponent::Update()
 	{
 		const bool movingHorizontally = m_CurrentDirection.x != 0;
 
-		float& axis = movingHorizontally
-			? m_WorldPosition.x
-			: m_WorldPosition.y;
-
 		const float offsetAxis = movingHorizontally
 			? m_Offset.x
 			: m_Offset.y;
+
+		const float axis = movingHorizontally
+			? m_WorldPosition.x
+			: m_WorldPosition.y;
 
 		const float localAxis = axis - offsetAxis;
 		const float tileSize = static_cast<float>(m_TileSize);
@@ -139,10 +140,39 @@ void digger::GridMovementComponent::Update()
 		const float targetAxis = offsetAxis + targetGridLocal;
 		const float distanceToGrid = targetAxis - axis;
 
+		glm::vec2 nextWorldPosition = m_WorldPosition;
+
 		if (std::abs(distanceToGrid) <= moveDistance)
 		{
-			axis = targetAxis;
+			if (movingHorizontally)
+				nextWorldPosition.x = targetAxis;
+			else
+				nextWorldPosition.y = targetAxis;
+		}
+		else
+		{
+			const float sign = distanceToGrid > 0.f ? 1.f : -1.f;
 
+			if (movingHorizontally)
+				nextWorldPosition.x += sign * moveDistance;
+			else
+				nextWorldPosition.y += sign * moveDistance;
+		}
+
+		if (!CanOccupyPosition(nextWorldPosition))
+		{
+			m_AligningForTurn = false;
+			m_PendingTurnDirection = {};
+			m_TurnKeyHeld = false;
+			m_CurrentDirection = {};
+			UpdateTransform();
+			return;
+		}
+
+		m_WorldPosition = nextWorldPosition;
+
+		if (std::abs(distanceToGrid) <= moveDistance)
+		{
 			if (m_PendingTurnDirection != glm::ivec2{} && m_TurnKeyHeld)
 			{
 				SetCurrentDirection(m_PendingTurnDirection);
@@ -156,11 +186,6 @@ void digger::GridMovementComponent::Update()
 			m_PendingTurnDirection = {};
 			m_AligningForTurn = false;
 			m_TurnKeyHeld = false;
-		}
-		else
-		{
-			const float sign = distanceToGrid > 0.f ? 1.f : -1.f;
-			axis += sign * moveDistance;
 		}
 
 		Dig();
@@ -180,8 +205,16 @@ void digger::GridMovementComponent::Update()
 	{
 		const glm::ivec2 nextGrid = WorldToGrid(nextWorldPosition);
 
-		if (!m_Manager->CanPlayerMoveTo(nextGrid))
+		// Money bag check
+		if (m_Manager->HasMoneyBagAt(nextGrid))
+		{
+			if (!m_Manager->TryPushMoneyBagAt(nextGrid, m_CurrentDirection))
+				return;
+		}
+		else if (!m_Manager->CanPlayerMoveTo(nextGrid))
+		{
 			return;
+		}
 	}
 
 	m_WorldPosition = nextWorldPosition;
@@ -293,4 +326,17 @@ void digger::GridMovementComponent::Dig()
 	m_Manager->DigAtWorldPosition(
 		m_WorldPosition + m_PlayerCenterOffset,
 		m_CurrentDirection);
+}
+
+bool digger::GridMovementComponent::CanOccupyPosition(const glm::vec2& worldPos) const
+{
+	if (!m_Manager)
+		return true;
+
+	const glm::ivec2 grid = WorldToGrid(worldPos);
+
+	if (m_Manager->HasMoneyBagAt(grid))
+		return false;
+
+	return m_Manager->CanPlayerMoveTo(grid);
 }

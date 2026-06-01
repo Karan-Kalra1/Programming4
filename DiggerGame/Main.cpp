@@ -37,6 +37,9 @@
 #include "ToggleMuteCommand.h"
 #include "GridMoveCommand.h"
 #include "ShootFireballCommand.h"
+#include "HighScoreConfirmCommand.h"
+#include "HighScoreCursorCommand.h"
+#include "HighScoreLetterCommand.h"
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -88,6 +91,39 @@ static void load()
 		std::make_unique<digger::ShootFireballCommand>(manager));
 	input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,
 		std::make_unique<digger::ShootFireballCommand>(manager));
+
+
+	input.BindKeyboardCommand(SDL_SCANCODE_UP, dae::KeyState::Down,
+		std::make_unique<digger::HighScoreLetterCommand>(manager, 1));
+
+	input.BindKeyboardCommand(SDL_SCANCODE_DOWN, dae::KeyState::Down,
+		std::make_unique<digger::HighScoreLetterCommand>(manager, -1));
+
+	input.BindKeyboardCommand(SDL_SCANCODE_LEFT, dae::KeyState::Down,
+		std::make_unique<digger::HighScoreCursorCommand>(manager, -1));
+
+	input.BindKeyboardCommand(SDL_SCANCODE_RIGHT, dae::KeyState::Down,
+		std::make_unique<digger::HighScoreCursorCommand>(manager, 1));
+
+	input.BindKeyboardCommand(SDL_SCANCODE_RETURN, dae::KeyState::Down,
+		std::make_unique<digger::HighScoreConfirmCommand>(manager));
+
+
+	input.BindControllerCommand(0, dae::ControllerButton::DPadUp, dae::KeyState::Down,
+		std::make_unique<digger::HighScoreLetterCommand>(manager, 1));
+
+	input.BindControllerCommand(0, dae::ControllerButton::DPadDown, dae::KeyState::Down,
+		std::make_unique<digger::HighScoreLetterCommand>(manager, -1));
+
+	input.BindControllerCommand(0, dae::ControllerButton::DPadLeft, dae::KeyState::Down,
+		std::make_unique<digger::HighScoreCursorCommand>(manager, -1));
+
+	input.BindControllerCommand(0, dae::ControllerButton::DPadRight, dae::KeyState::Down,
+		std::make_unique<digger::HighScoreCursorCommand>(manager, 1));
+
+	input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,
+		std::make_unique<digger::HighScoreConfirmCommand>(manager));
+
 
 	scene.Add(std::move(managerObject));
 }

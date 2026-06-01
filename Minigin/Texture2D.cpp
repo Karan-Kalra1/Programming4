@@ -25,7 +25,7 @@ dae::Texture2D::Texture2D(const std::string &fullPath)
     SDL_Surface* surface = SDL_LoadPNG(fullPath.c_str());
     if (!surface)
     {
-        throw std::runtime_error(
+            throw std::runtime_error(
             std::string("Failed to load PNG: ") + SDL_GetError()
         );
     }

@@ -43,6 +43,11 @@ digger::LevelData digger::LevelLoader::Load(const std::filesystem::path& path)
 				data.enemySpawn = { x, y };
 				data.hasEnemySpawn = true;
 			}
+			else if (c == 'B')
+			{
+				data.moneyBags.push_back({ x, y });
+				data.tiles[y][x] = '#'; // bag sits on top of dirt
+			}
 		}
 	}
 
