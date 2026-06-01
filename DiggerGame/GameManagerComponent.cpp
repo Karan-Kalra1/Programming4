@@ -48,6 +48,8 @@ void digger::GameManagerComponent::StartGame(GameMode mode)
 	m_Score = 0;
 	//m_Lives = 4;
 	m_CurrentLevel = 0;
+	m_PlayerLives = { 4, 4 };
+	m_PlayerAlive = { true, true };
 
 	m_ScreenState = GameScreenState::Playing;
 
@@ -338,6 +340,9 @@ void digger::GameManagerComponent::CreateHUD()
 		playerIndex < static_cast<int>(m_Players.size());
 		++playerIndex)
 	{
+		if (!m_PlayerAlive[static_cast<size_t>(playerIndex)])
+			continue;
+
 		std::array<dae::GameObject*, 4> icons{};
 
 		const float iconsStartX =
@@ -387,6 +392,9 @@ void digger::GameManagerComponent::UpdateHUD()
 		playerIndex < static_cast<int>(m_PlayerLifeIcons.size());
 		++playerIndex)
 	{
+		if (!m_PlayerAlive[static_cast<size_t>(playerIndex)])
+			continue;
+
 		if (playerIndex >= static_cast<int>(m_Players.size()))
 			continue;
 
@@ -956,12 +964,18 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 {
 	m_Players.clear();
 
-	SpawnDiggerPlayer(
-		0,
-		data.playerSpawn,
-		"Digger.png");
-
 	if (m_Mode == GameMode::Coop)
+	m_Players.resize(2);
+
+	if (m_PlayerAlive[0])
+	{
+		SpawnDiggerPlayer(
+			0,
+			data.playerSpawn,
+			"Digger.png");
+	}
+
+	if (m_Mode == GameMode::Coop && m_PlayerAlive[1])
 	{
 		const glm::ivec2 p2Spawn =
 			data.hasPlayer2Spawn
@@ -1244,6 +1258,7 @@ void digger::GameManagerComponent::FinishPlayerDeathSequence()
 	if (player.lives <= 0)
 	{
 		player.alive = false;
+		m_PlayerAlive[static_cast<size_t>(m_DeathPlayerIndex)] = false;
 		player.dying = false;
 
 		if (player.object)
@@ -1521,8 +1536,8 @@ void digger::GameManagerComponent::SpawnDiggerPlayer(
 			playerPtr,
 			actor,
 			spawn,
-			4,
-			true,
+			m_PlayerLives[static_cast<size_t>(playerIndex)],
+			m_PlayerAlive[static_cast<size_t>(playerIndex)],
 			false,
 			0.f,
 			0.f
@@ -1668,7 +1683,7 @@ void digger::GameManagerComponent::ShootFireball(int playerIndex)
 	const auto& pos3 = playerTr->GetWorldPosition();
 
 	constexpr float playerCenter = 32.f;
-	constexpr float fireballSize = 24.f;
+	constexpr float fireballSize = 64.f;
 
 	glm::vec2 fireballPos{
 		pos3.x + playerCenter - fireballSize * 0.5f,
@@ -2074,6 +2089,7 @@ void digger::GameManagerComponent::DamagePlayer(int playerIndex)
 	player.dying = true;
 
 	--player.lives;
+	m_PlayerLives[static_cast<size_t>(playerIndex)] = player.lives;
 	UpdateHUD();
 
 	dae::EventBus::GetInstance().GetSubject().Notify(

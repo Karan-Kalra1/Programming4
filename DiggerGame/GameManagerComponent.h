@@ -196,7 +196,9 @@ namespace digger
 		std::vector<dae::TextComponent*> m_PlayerLifeLabels{};
 		int m_DeathPlayerIndex{ -1 };
 
-		
+		std::array<int, 2> m_PlayerLives{ 4, 4 };
+		std::array<bool, 2> m_PlayerAlive{ true, true };
+
 		std::vector<dae::GameObject*> m_Diamonds{};
 		std::vector<EnemyComponent*> m_Enemies{};
 		std::vector<MoneyBagComponent*> m_MoneyBags{};
