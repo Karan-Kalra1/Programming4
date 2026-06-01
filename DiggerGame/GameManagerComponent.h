@@ -41,6 +41,7 @@ struct PlayerRuntime
 	bool dying{ false };
 
 	float damageCooldown{};
+	float fireballCooldown{};
 };
 
 namespace digger
@@ -112,7 +113,7 @@ namespace digger
 		int GetTileSize() { return m_TileSize; }
 		void KillEnemy(EnemyComponent* enemy);
 		float GetFireballCooldown() const;
-		void ShootFireball();
+		void ShootFireball(int playerIndex = 0);
 		void CheckFireballHit(dae::GameObject* fireball);
 		glm::ivec2 GetPlayerFacingDirection() const;
 		void DigAtPoint(const glm::vec2& point);
@@ -189,13 +190,13 @@ namespace digger
 		std::vector<dae::GameObject*> m_Fireballs{};
 		std::vector<dae::GameObject*> m_LevelObjects;
 
-		dae::GameObject* m_Player{};
+		
 		std::vector<PlayerRuntime> m_Players{};
 		std::vector<std::array<dae::GameObject*, 4>> m_PlayerLifeIcons{};
 		std::vector<dae::TextComponent*> m_PlayerLifeLabels{};
 		int m_DeathPlayerIndex{ -1 };
 
-		dae::GameActorComponent* m_PlayerActor{};
+		
 		std::vector<dae::GameObject*> m_Diamonds{};
 		std::vector<EnemyComponent*> m_Enemies{};
 		std::vector<MoneyBagComponent*> m_MoneyBags{};
@@ -222,14 +223,12 @@ namespace digger
 		GameMode m_Mode{ GameMode::SinglePlayer };
 		bool m_ShouldLoadNextLevel{};
 
-		float m_DamageCooldown{};
+		
 		float m_DamageCooldownDuration{ 1.0f };
 		int m_CurrentLevel{};
 		int m_TileSize{ 64 };
 		int m_Score{};
-		int m_Lives{ 4 };
-
-		glm::ivec2 m_PlayerSpawn{};
+		
 			
 		LevelData m_LevelData{};
 
@@ -256,7 +255,7 @@ namespace digger
 		float m_EnemySpawnInterval{ 2.0f };
 
 
-		float m_FireballCooldownTimer{};
+		
 		
 		
 	};

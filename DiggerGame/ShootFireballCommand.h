@@ -8,8 +8,9 @@ namespace digger
 	class ShootFireballCommand final : public dae::Command
 	{
 	public:
-		explicit ShootFireballCommand(GameManagerComponent* manager)
+		ShootFireballCommand(GameManagerComponent* manager, int playerIndex)
 			: m_Manager(manager)
+			, m_PlayerIndex(playerIndex)
 		{
 		}
 
@@ -17,5 +18,6 @@ namespace digger
 
 	private:
 		GameManagerComponent* m_Manager{};
+		int m_PlayerIndex{};
 	};
 }

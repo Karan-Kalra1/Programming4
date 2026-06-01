@@ -113,10 +113,13 @@ static void load()
 		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 1, 0 }, false));
 
 
+	// P1 keyboard
 	input.BindKeyboardCommand(SDL_SCANCODE_SPACE, dae::KeyState::Down,
-		std::make_unique<digger::ShootFireballCommand>(manager));
+		std::make_unique<digger::ShootFireballCommand>(manager, 0));
+
+	// P2 controller
 	input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,
-		std::make_unique<digger::ShootFireballCommand>(manager));
+		std::make_unique<digger::ShootFireballCommand>(manager, 1));
 
 
 	input.BindKeyboardCommand(SDL_SCANCODE_UP, dae::KeyState::Down,

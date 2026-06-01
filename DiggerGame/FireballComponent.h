@@ -13,7 +13,10 @@ namespace digger
 			dae::GameObject* owner,
 			GameManagerComponent* manager,
 			glm::vec2 direction,
-			float speed);
+			float speed,
+			int ownerPlayerIndex);
+
+		int GetOwnerPlayerIndex() const { return m_OwnerPlayerIndex; }
 
 		void Update() override;
 
@@ -21,5 +24,6 @@ namespace digger
 		GameManagerComponent* m_Manager{};
 		glm::vec2 m_Direction{};
 		float m_Speed{};
+		int m_OwnerPlayerIndex{};
 	};
 }

@@ -8,14 +8,15 @@ digger::FireballComponent::FireballComponent(
 	dae::GameObject* owner,
 	GameManagerComponent* manager,
 	glm::vec2 direction,
-	float speed)
+	float speed,
+	int ownerPlayerIndex)
 	: Component(owner)
 	, m_Manager(manager)
 	, m_Direction(direction)
 	, m_Speed(speed)
+	, m_OwnerPlayerIndex(ownerPlayerIndex)
 {
 }
-
 void digger::FireballComponent::Update()
 {
 	if (m_Manager && m_Manager->IsGameplayFrozen())

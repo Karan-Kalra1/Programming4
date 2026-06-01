@@ -46,7 +46,7 @@ void digger::GameManagerComponent::StartGame(GameMode mode)
 
 	m_Mode = mode;
 	m_Score = 0;
-	m_Lives = 4;
+	//m_Lives = 4;
 	m_CurrentLevel = 0;
 
 	m_ScreenState = GameScreenState::Playing;
@@ -814,6 +814,9 @@ void digger::GameManagerComponent::Update()
 	{
 		if (player.damageCooldown > 0.f)
 			player.damageCooldown -= dae::MiniginTime::GetDeltaTime();
+
+		if (player.fireballCooldown > 0.f)
+			player.fireballCooldown -= dae::MiniginTime::GetDeltaTime();
 	}
 
 	if (m_DeathSequenceActive)
@@ -848,8 +851,6 @@ void digger::GameManagerComponent::Update()
 		m_ShouldLoadNextLevel = true;
 	}
 
-	if (m_FireballCooldownTimer > 0.f)
-		m_FireballCooldownTimer -= dae::MiniginTime::GetDeltaTime();
 
 	CheckEnemyCrossings();
 }
@@ -903,7 +904,7 @@ void digger::GameManagerComponent::ClearLevel()
 
 	m_Players.clear();
 
-	m_Player = nullptr;
+	//m_Player = nullptr;
 
 	RemoveTombstone();
 
@@ -1523,6 +1524,7 @@ void digger::GameManagerComponent::SpawnDiggerPlayer(
 			4,
 			true,
 			false,
+			0.f,
 			0.f
 	};
 
@@ -1624,74 +1626,82 @@ float digger::GameManagerComponent::GetFireballCooldown() const
 	return 0.5f + static_cast<float>(m_CurrentLevel) * 0.25f;
 }
 
-glm::ivec2 digger::GameManagerComponent::GetPlayerFacingDirection() const
-{
-	if (!m_Player)
-		return { 1, 0 };
 
-	auto* movement = m_Player->GetComponent<GridMovementComponent>();
+void digger::GameManagerComponent::ShootFireball(int playerIndex)
+{
+	if (!IsPlayerControllable(playerIndex))
+		return;
+
+	if (playerIndex < 0 || playerIndex >= static_cast<int>(m_Players.size()))
+		return;
+
+	auto& playerData = m_Players[static_cast<size_t>(playerIndex)];
+
+	if (playerData.fireballCooldown > 0.f)
+		return;
+
+
+	auto* player = playerData.object;
+	if (!player)
+		return;
+
+	auto* playerTr = player->GetComponent<dae::TransformComponent>();
+	if (!playerTr)
+		return;
+
+	auto* movement = player->GetComponent<GridMovementComponent>();
 	if (!movement)
-		return { 1, 0 };
-
-	return movement->GetFacingDirection();
-}
-
-void digger::GameManagerComponent::ShootFireball()
-{
-	if (m_FireballCooldownTimer > 0.f)
 		return;
 
-	if (!m_Player)
-		return;
+	const glm::ivec2 facing = movement->GetFacingDirection();
 
-	m_FireballCooldownTimer = GetFireballCooldown();
-
-	auto* tr = m_Player->GetComponent<dae::TransformComponent>();
-	if (!tr)
-		return;
-
-	const auto& pos3 = tr->GetWorldPosition();
-
-	glm::ivec2 facing = GetPlayerFacingDirection();
 	glm::vec2 direction{
 		static_cast<float>(facing.x),
 		static_cast<float>(facing.y)
 	};
 
+	if (direction == glm::vec2{})
+		direction = { 1.f, 0.f };
+
+	playerData.fireballCooldown = GetFireballCooldown();
+
+	const auto& pos3 = playerTr->GetWorldPosition();
+
+	constexpr float playerCenter = 32.f;
+	constexpr float fireballSize = 24.f;
+
+	glm::vec2 fireballPos{
+		pos3.x + playerCenter - fireballSize * 0.5f,
+		pos3.y + playerCenter - fireballSize * 0.5f
+	};
+
+	fireballPos += direction * 28.f;
+
 	auto fireball = std::make_unique<dae::GameObject>();
 	auto* fireballPtr = fireball.get();
 
-	dae::ServiceLocator::GetSoundSystem().PlayLooping(
-		GameSound::BulletTravel,
-		0.7f);
-
 	auto* fireTr = fireball->AddComponent<dae::TransformComponent>(fireballPtr);
-
-	
-	glm::vec2 fireballPos{
-		pos3.x ,
-		pos3.y 
-	};
-
-	fireballPos += glm::vec2{
-		static_cast<float>(facing.x),
-		static_cast<float>(facing.y)
-	} * 28.f;
-
 	fireTr->SetLocalPosition(fireballPos.x, fireballPos.y);
-	
+
 	fireball->AddComponent<dae::RenderComponent>(
 		fireballPtr,
-		dae::ResourceManager::GetInstance().LoadTexture("Fireball.png"));
+		dae::ResourceManager::GetInstance().LoadTexture("Fireball.png"),
+		fireballSize,
+		fireballSize);
 
 	fireball->AddComponent<FireballComponent>(
 		fireballPtr,
 		this,
 		direction,
-		300.f);
+		300.f,
+		playerIndex);
 
 	m_Fireballs.push_back(fireballPtr);
 	m_LevelObjects.push_back(fireballPtr);
+
+	dae::ServiceLocator::GetSoundSystem().PlayLooping(
+		GameSound::BulletTravel,
+		0.7f);
 
 	m_Scene->Add(std::move(fireball));
 }

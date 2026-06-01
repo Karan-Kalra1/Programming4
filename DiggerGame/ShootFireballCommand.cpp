@@ -3,6 +3,8 @@
 
 void digger::ShootFireballCommand::Execute()
 {
-	if (m_Manager)
-		m_Manager->ShootFireball();
+	if (!m_Manager)
+		return;
+
+	m_Manager->ShootFireball(m_PlayerIndex);
 }
