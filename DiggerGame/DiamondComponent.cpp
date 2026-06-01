@@ -3,29 +3,29 @@
 #include "GameObject.h"
 #include "TransformComponent.h"
 
+
 void digger::DiamondComponent::Update()
 {
-	if (m_Manager && m_Manager->IsGameplayFrozen())
-		return;
-
 	if (m_Collected || !m_Manager)
 		return;
 
-	auto* myTransform = GetOwner()->GetComponent<dae::TransformComponent>();
-	if (!myTransform)
+	auto* tr = GetOwner()->GetComponent<dae::TransformComponent>();
+	if (!tr)
 		return;
 
-	const auto& myPos3 = myTransform->GetWorldPosition();
-	glm::vec2 diamondPos{ myPos3.x + 32.f, myPos3.y + 32.f };
+	const auto& pos = tr->GetWorldPosition();
 
-	glm::vec2 playerPos = m_Manager->GetPlayerWorldPosition();
+	glm::vec2 diamondCenter{
+		pos.x + 32.f,
+		pos.y + 32.f
+	};
 
-	const float dx = diamondPos.x - playerPos.x;
-	const float dy = diamondPos.y - playerPos.y;
+	const int playerIndex =
+		m_Manager->GetPlayerIndexAtWorldPosition(
+			diamondCenter,
+			m_Manager->GetCollisionRadius());
 
-	const float radius = m_Manager->GetCollisionRadius();
-
-	if ((dx * dx + dy * dy) <= radius * radius)
+	if (playerIndex != -1)
 	{
 		m_Collected = true;
 		m_Manager->CollectDiamond(GetOwner());

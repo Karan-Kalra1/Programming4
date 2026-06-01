@@ -18,5 +18,8 @@ namespace digger
 		glm::ivec2 enemySpawn{};
 		bool hasEnemySpawn{};
 		std::vector<glm::ivec2> moneyBags;
+
+		glm::ivec2 player2Spawn{};
+		bool hasPlayer2Spawn{};
 	};
 }

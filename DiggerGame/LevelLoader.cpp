@@ -29,8 +29,17 @@ digger::LevelData digger::LevelLoader::Load(const std::filesystem::path& path)
 		{
 			const char c = data.tiles[y][x];
 
-			if (c == 'P')
+			 if (c == 'P')
+			{
 				data.playerSpawn = { x, y };
+				data.tiles[y][x] = '.';
+			}
+			else if (c == 'Q')
+			{
+				data.player2Spawn = { x, y };
+				data.hasPlayer2Spawn = true;
+				data.tiles[y][x] = '.';
+			}
 			else if (c == 'D')
 			{
 				data.diamonds.push_back({ x, y });

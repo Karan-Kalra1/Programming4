@@ -29,6 +29,20 @@ enum class GameScreenState
 	ShowingHighScores
 };
 
+struct PlayerRuntime
+{
+	dae::GameObject* object{};
+	dae::GameActorComponent* actor{};
+
+	glm::ivec2 spawn{};
+
+	int lives{ 4 };
+	bool alive{ true };
+	bool dying{ false };
+
+	float damageCooldown{};
+};
+
 namespace digger
 {
 	class MoneyBagComponent;
@@ -58,17 +72,41 @@ namespace digger
 		void ToggleMute();
 
 		void CollectDiamond(dae::GameObject* diamond);
-		glm::ivec2 GetPlayerGridPosition() const;	
+			
 		bool CanEnemyMoveTo(const glm::ivec2& pos, bool canDig) const;
 		void DigTile(const glm::ivec2& pos);
 		bool IsDirt(const glm::ivec2& pos) const;
-		void DamagePlayer();
+		//void DamagePlayer();
 		bool CanPlayerMoveTo(const glm::ivec2& pos) const;
 		void DigAtWorldPosition(const glm::vec2& worldPos, const glm::ivec2& direction);
 		bool IsPlayerAtGridPosition(const glm::ivec2& pos) const;
 
-		dae::GameObject* GetPlayer() const { return m_Player; }
-		glm::vec2 GetPlayerWorldPosition() const;
+		dae::GameObject* GetPlayer(int index = 0) const;
+		glm::ivec2 GetPlayerGridPosition(int index = 0) const;
+		glm::vec2 GetPlayerWorldPosition(int index = 0) const;
+
+
+		glm::ivec2 GetClosestAlivePlayerGridPosition(const glm::ivec2& fromGrid) const;
+		//int GetClosestAlivePlayerIndexToWorld(const glm::vec2& worldPos) const;
+		int GetPlayerIndexAtWorldPosition(const glm::vec2& worldPos, float radius) const;
+		int GetPlayerIndexAtGridPosition(const glm::ivec2& pos) const;
+
+		void DamagePlayer(int playerIndex = 0);
+
+		bool AreAllPlayersDead() const;
+
+		void SpawnDiggerPlayer(
+			int playerIndex,
+			const glm::ivec2& spawn,
+			const std::string& textureFile);
+
+		void RemovePlayerObservers();
+
+		int GetPlayerCount() const
+		{
+			return static_cast<int>(m_Players.size());
+		}
+
 		float GetCollisionRadius() const { return m_TileSize * 0.7f; }
 		glm::vec2 GetMapOffset(){ return m_MapOffset; }
 		int GetTileSize() { return m_TileSize; }
@@ -98,6 +136,8 @@ namespace digger
 		void NavigateMenu(int delta);
 		void ConfirmMenuSelection();
 		void ShowStartMenu();
+		bool IsPlayerAlive(int playerIndex) const;
+		bool IsPlayerControllable(int playerIndex) const;
 
 	private:
 
@@ -132,6 +172,7 @@ namespace digger
 		void ClearHUD();
 
 		void QuitGame();
+		
 
 		dae::TextComponent* m_StartMenuTitleText{};
 		dae::TextComponent* m_StartMenuPlayText{};
@@ -147,7 +188,13 @@ namespace digger
 
 		std::vector<dae::GameObject*> m_Fireballs{};
 		std::vector<dae::GameObject*> m_LevelObjects;
+
 		dae::GameObject* m_Player{};
+		std::vector<PlayerRuntime> m_Players{};
+		std::vector<std::array<dae::GameObject*, 4>> m_PlayerLifeIcons{};
+		std::vector<dae::TextComponent*> m_PlayerLifeLabels{};
+		int m_DeathPlayerIndex{ -1 };
+
 		dae::GameActorComponent* m_PlayerActor{};
 		std::vector<dae::GameObject*> m_Diamonds{};
 		std::vector<EnemyComponent*> m_Enemies{};
@@ -187,7 +234,7 @@ namespace digger
 		LevelData m_LevelData{};
 
 		glm::vec2 m_PlayerCenterOffset{ 32.f, 32.f };
-		float m_DigRadius{ 20.f };
+		float m_DigRadius{ 16.f };
 
 		
 		glm::vec2 m_MapOffset{ -32.f, -32.f };

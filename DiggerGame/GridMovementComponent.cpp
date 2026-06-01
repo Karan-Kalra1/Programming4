@@ -315,6 +315,21 @@ void digger::GridMovementComponent::ApplyRotation()
 	}
 }
 
+void digger::GridMovementComponent::ReleaseAllDirections()
+{
+	m_CurrentDirection = {};
+	m_LastDirection = {};
+	m_PendingTurnDirection = {};
+
+	m_AligningForTurn = false;
+	m_TurnKeyHeld = false;
+
+	m_HeldUp = false;
+	m_HeldDown = false;
+	m_HeldLeft = false;
+	m_HeldRight = false;
+}
+
 void digger::GridMovementComponent::UpdateTransform()
 {
 	if (auto* transform = GetOwner()->GetComponent<dae::TransformComponent>())

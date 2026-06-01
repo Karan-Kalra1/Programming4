@@ -71,24 +71,48 @@ static void load()
 		std::make_unique<digger::ToggleMuteCommand>(manager));
 
 	input.BindKeyboardCommand(SDL_SCANCODE_W, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ 0, -1 },true));
+		std::make_unique<digger::GridMoveCommand>( manager,0, glm::ivec2{ 0, -1 },true));
 	input.BindKeyboardCommand(SDL_SCANCODE_W, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, glm::ivec2{ 0, -1 },false));
+		std::make_unique<digger::GridMoveCommand>(manager,0, glm::ivec2{ 0, -1 },false));
 
 	input.BindKeyboardCommand(SDL_SCANCODE_S, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ 0, 1 },true));
+		std::make_unique<digger::GridMoveCommand>( manager, 0, glm::ivec2{ 0, 1 },true));
 	input.BindKeyboardCommand(SDL_SCANCODE_S, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, glm::ivec2{ 0, 1 }, false));
+		std::make_unique<digger::GridMoveCommand>(manager, 0, glm::ivec2{ 0, 1 }, false));
 
 	input.BindKeyboardCommand(SDL_SCANCODE_A, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ -1, 0 },true));
+		std::make_unique<digger::GridMoveCommand>( manager, 0, glm::ivec2{ -1, 0 },true));
 	input.BindKeyboardCommand(SDL_SCANCODE_A, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, glm::ivec2{ -1, 0 }, false));
+		std::make_unique<digger::GridMoveCommand>(manager, 0, glm::ivec2{ -1, 0 }, false));
 
 	input.BindKeyboardCommand(SDL_SCANCODE_D, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, glm::ivec2{ 1, 0 },true));
+		std::make_unique<digger::GridMoveCommand>( manager, 0, glm::ivec2{ 1, 0 },true));
 	input.BindKeyboardCommand(SDL_SCANCODE_D, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, glm::ivec2{ 1, 0 }, false));
+		std::make_unique<digger::GridMoveCommand>(manager, 0, glm::ivec2{ 1, 0 }, false));
+
+
+
+	input.BindControllerCommand(0, dae::ControllerButton::DPadUp, dae::KeyState::Down,
+		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 0, -1 }, true));
+	input.BindControllerCommand(0, dae::ControllerButton::DPadUp, dae::KeyState::Up,
+		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 0, -1 }, false));
+
+	input.BindControllerCommand(0, dae::ControllerButton::DPadDown, dae::KeyState::Down,
+		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 0, 1 }, true));
+	input.BindControllerCommand(0, dae::ControllerButton::DPadDown, dae::KeyState::Up,
+		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 0, 1 }, false));
+
+	input.BindControllerCommand(0, dae::ControllerButton::DPadLeft, dae::KeyState::Down,
+		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ -1, 0 }, true));
+	input.BindControllerCommand(0, dae::ControllerButton::DPadLeft, dae::KeyState::Up,
+		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ -1, 0 }, false));
+
+	input.BindControllerCommand(0, dae::ControllerButton::DPadRight, dae::KeyState::Down,
+		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 1, 0 }, true));
+	input.BindControllerCommand(0, dae::ControllerButton::DPadRight, dae::KeyState::Up,
+		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 1, 0 }, false));
+
+
 	input.BindKeyboardCommand(SDL_SCANCODE_SPACE, dae::KeyState::Down,
 		std::make_unique<digger::ShootFireballCommand>(manager));
 	input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,

@@ -49,7 +49,7 @@ namespace digger
 		void CheckCrushTargets();
 		void DragTargetsDown();
 		void KillDraggedTargets();
-
+		void ReleaseDraggedTargets();
 
 		glm::vec2 GridToWorld(const glm::ivec2& grid) const;
 
@@ -63,7 +63,7 @@ namespace digger
 		glm::ivec2 m_GridPosition{};
 		glm::vec2 m_WorldPosition{};
 		glm::vec2 m_TargetWorldPosition{};
-		dae::GameObject* m_DraggedPlayer{};
+		int m_DraggedPlayerIndex{ -1 };
 		EnemyComponent* m_DraggedEnemy{};
 
 		bool m_HasFallen{};

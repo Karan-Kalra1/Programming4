@@ -22,6 +22,7 @@
 
 #include <memory>
 #include <iostream>
+#include <limits>
 
 namespace
 {
@@ -246,10 +247,50 @@ void digger::GameManagerComponent::ConfirmMenuSelection()
 
 void digger::GameManagerComponent::CreateHUD()
 {
-	auto font =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 24);
+	ClearHUD();
 
-	
+	auto font =
+		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 22);
+
+	auto lifeTexture =
+		dae::ResourceManager::GetInstance().LoadTexture("Digger.png");
+
+	const float screenWidth = 1056.f; 
+	const float hudY = 10.f;
+	const float iconY = -10.f;
+
+	const float iconScale = 0.7f;
+	const float iconSpacing = 48.f;
+
+	const float p1LabelX = 16.f;
+	const float p1IconsStartX = 58.f;
+
+	const float scoreX = screenWidth * 0.5f - 80.f;
+
+	const float p2LabelX = screenWidth - 270.f;
+	const float p2IconsStartX = screenWidth - 230.f;
+
+	// P1 label
+
+	if (!m_Players.empty())
+	{
+		auto labelObj = std::make_unique<dae::GameObject>();
+		auto* obj = labelObj.get();
+
+		obj->AddComponent<dae::TransformComponent>(obj)
+			->SetLocalPosition(p1LabelX, hudY);
+
+		auto* text = obj->AddComponent<dae::TextComponent>(
+			obj,
+			"P1",
+			font);
+
+		m_PlayerLifeLabels.push_back(text);
+		m_HUDObjects.push_back(obj);
+		m_Scene->Add(std::move(labelObj));
+	}
+
+
 	// Score text
 
 	{
@@ -257,7 +298,7 @@ void digger::GameManagerComponent::CreateHUD()
 		auto* obj = scoreObj.get();
 
 		obj->AddComponent<dae::TransformComponent>(obj)
-			->SetLocalPosition(20.f, 10.f);
+			->SetLocalPosition(scoreX, hudY);
 
 		m_ScoreText = obj->AddComponent<dae::TextComponent>(
 			obj,
@@ -268,32 +309,62 @@ void digger::GameManagerComponent::CreateHUD()
 		m_Scene->Add(std::move(scoreObj));
 	}
 
+
+	// P2 label
+
+	if (m_Players.size() >= 2)
+	{
+		auto labelObj = std::make_unique<dae::GameObject>();
+		auto* obj = labelObj.get();
+
+		obj->AddComponent<dae::TransformComponent>(obj)
+			->SetLocalPosition(p2LabelX, hudY);
+
+		auto* text = obj->AddComponent<dae::TextComponent>(
+			obj,
+			"P2",
+			font);
+
+		m_PlayerLifeLabels.push_back(text);
+		m_HUDObjects.push_back(obj);
+		m_Scene->Add(std::move(labelObj));
+	}
+
 	
 	// Life icons
+	m_PlayerLifeIcons.clear();
 
-	auto lifeTexture =
-		dae::ResourceManager::GetInstance().LoadTexture("Digger.png");
-
-	const float livesStartX = 150.f;  
-	const float livesY = -10.f;          
-	const float spacing = 55.f;        
-
-	for (int i = 0; i < 4; ++i)
+	for (int playerIndex = 0;
+		playerIndex < static_cast<int>(m_Players.size());
+		++playerIndex)
 	{
-		auto lifeObj = std::make_unique<dae::GameObject>();
-		auto* obj = lifeObj.get();
+		std::array<dae::GameObject*, 4> icons{};
 
-		auto* tr = obj->AddComponent<dae::TransformComponent>(obj);
-		tr->SetLocalPosition(
-			livesStartX + static_cast<float>(i) * spacing,
-			livesY);
-		tr->SetLocalScale(0.70f, 0.70f);
+		const float iconsStartX =
+			playerIndex == 0 ? p1IconsStartX : p2IconsStartX;
 
-		obj->AddComponent<dae::RenderComponent>(obj, lifeTexture);
+		for (int life = 0; life < 4; ++life)
+		{
+			auto lifeObj = std::make_unique<dae::GameObject>();
+			auto* obj = lifeObj.get();
 
-		m_LifeIcons[i] = obj;
-		m_HUDObjects.push_back(obj);
-		m_Scene->Add(std::move(lifeObj));
+			auto* tr = obj->AddComponent<dae::TransformComponent>(obj);
+
+			tr->SetLocalPosition(
+				iconsStartX + static_cast<float>(life) * iconSpacing,
+				iconY);
+
+			tr->SetLocalScale(iconScale, iconScale);
+
+			obj->AddComponent<dae::RenderComponent>(obj, lifeTexture);
+
+			icons[static_cast<size_t>(life)] = obj;
+
+			m_HUDObjects.push_back(obj);
+			m_Scene->Add(std::move(lifeObj));
+		}
+
+		m_PlayerLifeIcons.push_back(icons);
 	}
 
 	UpdateHUD();
@@ -304,31 +375,73 @@ void digger::GameManagerComponent::UpdateHUD()
 	if (m_ScoreText)
 		m_ScoreText->SetText("Score: " + std::to_string(m_Score));
 
-	const float livesStartX = 150.f;
-	const float livesY = -10.f;
-	const float spacing = 55.f;
+	const float screenWidth = 1056.f; 
 
-	for (int i = 0; i < 4; ++i)
+	const float iconY = -10.f;
+	const float iconSpacing = 48.f;
+
+	const float p1IconsStartX = 58.f;
+	const float p2IconsStartX = screenWidth - 230.f;
+
+	for (int playerIndex = 0;
+		playerIndex < static_cast<int>(m_PlayerLifeIcons.size());
+		++playerIndex)
 	{
-		auto* icon = m_LifeIcons[i];
-		if (!icon)
+		if (playerIndex >= static_cast<int>(m_Players.size()))
 			continue;
 
-		auto* tr = icon->GetComponent<dae::TransformComponent>();
-		if (!tr)
-			continue;
+		const auto& player =
+			m_Players[static_cast<size_t>(playerIndex)];
 
-		if (i < m_Lives)
+		auto& icons =
+			m_PlayerLifeIcons[static_cast<size_t>(playerIndex)];
+
+		const float iconsStartX =
+			playerIndex == 0 ? p1IconsStartX : p2IconsStartX;
+
+		for (int life = 0; life < 4; ++life)
 		{
-			tr->SetLocalPosition(
-				livesStartX + static_cast<float>(i) * spacing,
-				livesY);
-		}
-		else
-		{
-			tr->SetLocalPosition(-5000.f, -5000.f);
+			auto* icon = icons[static_cast<size_t>(life)];
+			if (!icon)
+				continue;
+
+			auto* tr = icon->GetComponent<dae::TransformComponent>();
+			if (!tr)
+				continue;
+
+			if (player.alive && life < player.lives)
+			{
+				tr->SetLocalPosition(
+					iconsStartX + static_cast<float>(life) * iconSpacing,
+					iconY);
+			}
+			else
+			{
+				tr->SetLocalPosition(-5000.f, -5000.f);
+			}
 		}
 	}
+}
+
+bool digger::GameManagerComponent::IsPlayerAlive(int playerIndex) const
+{
+	if (playerIndex < 0 ||
+		playerIndex >= static_cast<int>(m_Players.size()))
+	{
+		return false;
+	}
+
+	const auto& player = m_Players[static_cast<size_t>(playerIndex)];
+
+	return player.alive && !player.dying && player.object;
+}
+
+bool digger::GameManagerComponent::IsPlayerControllable(int playerIndex) const
+{
+	if (IsGameplayFrozen())
+		return false;
+
+	return IsPlayerAlive(playerIndex);
 }
 
 void digger::GameManagerComponent::GameOver()
@@ -697,8 +810,11 @@ void digger::GameManagerComponent::Update()
 		return;
 	}
 
-	if (m_DamageCooldown > 0.f)
-		m_DamageCooldown -= dae::MiniginTime::GetDeltaTime();
+	for (auto& player : m_Players)
+	{
+		if (player.damageCooldown > 0.f)
+			player.damageCooldown -= dae::MiniginTime::GetDeltaTime();
+	}
 
 	if (m_DeathSequenceActive)
 	{
@@ -769,11 +885,7 @@ void digger::GameManagerComponent::CollectDiamond(dae::GameObject* diamond)
 }
 void digger::GameManagerComponent::ClearLevel()
 {
-	if (m_PlayerActor)
-	{
-		dae::EventBus::GetInstance().GetSubject().RemoveObserver(m_PlayerActor);
-		m_PlayerActor = nullptr;
-	}
+	RemovePlayerObservers();
 
 	RemoveAllFireballs();
 
@@ -788,6 +900,9 @@ void digger::GameManagerComponent::ClearLevel()
 	m_Enemies.clear();
 	m_DirtTiles.clear();
 	m_MoneyBags.clear();
+
+	m_Players.clear();
+
 	m_Player = nullptr;
 
 	RemoveTombstone();
@@ -830,41 +945,33 @@ void digger::GameManagerComponent::ClearHUD()
 
 	m_HUDObjects.clear();
 
-	for (auto& icon : m_LifeIcons)
-		icon = nullptr;
+	m_PlayerLifeIcons.clear();
+	m_PlayerLifeLabels.clear();
 
 	m_ScoreText = nullptr;
 }
 
 void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 {
-	auto player = std::make_unique<dae::GameObject>();
-	auto* playerPtr = player.get();
+	m_Players.clear();
 
-	player->AddComponent<dae::TransformComponent>(playerPtr);
+	SpawnDiggerPlayer(
+		0,
+		data.playerSpawn,
+		"Digger.png");
 
-	auto* movement = player->AddComponent<GridMovementComponent>(
-		playerPtr,
-		this,
-		m_TileSize,
-		120.f,
-		m_MapOffset);
+	if (m_Mode == GameMode::Coop)
+	{
+		const glm::ivec2 p2Spawn =
+			data.hasPlayer2Spawn
+			? data.player2Spawn
+			: data.playerSpawn + glm::ivec2{ 1, 0 };
 
-	movement->SetGridPosition(data.playerSpawn);
-
-	
-	player->AddComponent<dae::RenderComponent>(
-		playerPtr,
-		dae::ResourceManager::GetInstance().LoadTexture("Digger.png"));
-
-	auto* actor = player->AddComponent<dae::GameActorComponent>(playerPtr, m_Lives, m_Score, 1);
-	m_PlayerActor = actor;
-	dae::EventBus::GetInstance().GetSubject().AddObserver(m_PlayerActor);
-
-	m_Player = playerPtr;
-	m_PlayerSpawn = data.playerSpawn;
-	m_LevelObjects.push_back(playerPtr);
-	m_Scene->Add(std::move(player));
+		SpawnDiggerPlayer(
+			1,
+			p2Spawn,
+			"Digger.png");
+	}
 
 	m_DirtTiles.clear();
 
@@ -1049,60 +1156,43 @@ void digger::GameManagerComponent::DigTile(const glm::ivec2& pos)
 }
 
 
-
-glm::ivec2 digger::GameManagerComponent::GetPlayerGridPosition() const
+dae::GameObject* digger::GameManagerComponent::GetPlayer(int index) const
 {
-	
-		if (!m_Player)
-			return {};
+	if (index < 0 || index >= static_cast<int>(m_Players.size()))
+		return nullptr;
 
-		if (auto* movement = m_Player->GetComponent<GridMovementComponent>())
-			return movement->GetGridPosition();
-
-		if (auto* grid = m_Player->GetComponent<GridPositionComponent>())
-			return grid->GetGridPosition();
-
-		return {};
-	
+	return m_Players[static_cast<size_t>(index)].object;
 }
 
-void digger::GameManagerComponent::DamagePlayer()
+glm::ivec2 digger::GameManagerComponent::GetPlayerGridPosition(int index) const
 {
-	if (m_ScreenState != GameScreenState::Playing)
-		return;
+	auto* player = GetPlayer(index);
+	if (!player)
+		return {};
 
-	if (!m_Player)
-		return;
+	if (auto* movement = player->GetComponent<GridMovementComponent>())
+		return movement->GetGridPosition();
 
-	if (m_DamageCooldown > 0.f)
-		return;
-
-	if (m_DeathSequenceActive)
-		return;
-
-	m_DamageCooldown = m_DamageCooldownDuration;
-
-	--m_Lives;
-	UpdateHUD();
-
-	auto* tr = m_Player->GetComponent<dae::TransformComponent>();
-	if (tr)
-	{
-		const auto& pos = tr->GetWorldPosition();
-		m_PlayerDeathWorldPosition = { pos.x, pos.y };
-	}
-	else
-	{
-		m_PlayerDeathWorldPosition = {};
-	}
-
-	BeginPlayerDeathSequence();
+	return {};
 }
 
 void digger::GameManagerComponent::BeginPlayerDeathSequence()
 {
+	if (m_DeathSequenceActive)
+		return;
+
 	m_DeathSequenceActive = true;
 	m_DeathSequenceTimer = 0.f;
+
+	for (auto& player : m_Players)
+	{
+		if (!player.object)
+			continue;
+
+		if (auto* movement = player.object->GetComponent<GridMovementComponent>())
+			movement->ReleaseAllDirections();
+	}
+
 
 	RemoveAllFireballs();
 
@@ -1111,39 +1201,88 @@ void digger::GameManagerComponent::BeginPlayerDeathSequence()
 	sound.Stop(GameSound::BackgroundMusic);
 	sound.Stop(GameSound::MoneyBagWiggle);
 	sound.Stop(GameSound::MoneyBagFalling);
+	sound.Stop(GameSound::BulletTravel);
 
+	sound.Play(GameSound::PlayerDeathSfx, 1.0f);
 	sound.Play(GameSound::PlayerDeathMusic, 1.0f);
 
 	SpawnTombstone(m_PlayerDeathWorldPosition);
 
-	// Hide player while tombstone is visible
-	if (m_Player)
+	if (m_DeathPlayerIndex >= 0 &&
+		m_DeathPlayerIndex < static_cast<int>(m_Players.size()))
 	{
-		if (auto* tr = m_Player->GetComponent<dae::TransformComponent>())
-			tr->SetLocalPosition(-5000.f, -5000.f);
+		auto* player = m_Players[static_cast<size_t>(m_DeathPlayerIndex)].object;
+
+		if (player)
+		{
+			if (auto* tr = player->GetComponent<dae::TransformComponent>())
+				tr->SetLocalPosition(-5000.f, -5000.f);
+		}
 	}
 }
 
 void digger::GameManagerComponent::FinishPlayerDeathSequence()
 {
-	m_DeathSequenceActive = false;
-	m_DeathSequenceTimer = 0.f;
-
+	
 	RemoveTombstone();
 
-	if (m_Lives <= 0)
+	if (m_DeathPlayerIndex < 0 ||
+		m_DeathPlayerIndex >= static_cast<int>(m_Players.size()))
 	{
-		GameOver();
+		m_DeathPlayerIndex = -1;
+		m_DeathSequenceActive = false;
+		m_DeathSequenceTimer = 0.f;
 		return;
 	}
 
-	if (m_Player)
+	auto& player = m_Players[static_cast<size_t>(m_DeathPlayerIndex)];
+
+	// Reset enemies
+	ResetEnemiesAfterPlayerDeath();
+
+	if (player.lives <= 0)
 	{
-		if (auto* movement = m_Player->GetComponent<GridMovementComponent>())
-			movement->SetGridPosition(m_PlayerSpawn);
+		player.alive = false;
+		player.dying = false;
+
+		if (player.object)
+		{
+			if (auto* tr = player.object->GetComponent<dae::TransformComponent>())
+				tr->SetLocalPosition(-5000.f, -5000.f);
+
+			if (auto* movement = player.object->GetComponent<GridMovementComponent>())
+				movement->ReleaseAllDirections(); 
+		}
+
+		if (AreAllPlayersDead())
+		{
+			m_DeathPlayerIndex = -1;
+			m_DeathSequenceActive = false;
+			m_DeathSequenceTimer = 0.f;
+
+			GameOver();
+			return;
+		}
+	}
+	else
+	{
+		if (player.object)
+		{
+			if (auto* movement = player.object->GetComponent<GridMovementComponent>())
+				movement->SetGridPosition(player.spawn);
+		}
+
+		// Small protection window after respawn
+		player.damageCooldown = 1.0f;
+
+		//player can be hit again
+		player.dying = false;
 	}
 
-	ResetEnemiesAfterPlayerDeath();
+	m_DeathPlayerIndex = -1;
+
+	m_DeathSequenceActive = false;
+	m_DeathSequenceTimer = 0.f;
 
 	dae::ServiceLocator::GetSoundSystem().PlayLooping(
 		GameSound::BackgroundMusic,
@@ -1239,15 +1378,16 @@ void digger::GameManagerComponent::DigAtWorldPosition(
 	DigAtPoint(worldPos + glm::vec2{ -diagonal, -diagonal });
 }
 
-glm::vec2 digger::GameManagerComponent::GetPlayerWorldPosition() const
+glm::vec2 digger::GameManagerComponent::GetPlayerWorldPosition(int index) const
 {
-	if (!m_Player)
+	auto* player = GetPlayer(index);
+	if (!player)
 		return {};
 
-	if (auto* movement = m_Player->GetComponent<GridMovementComponent>())
+	if (auto* movement = player->GetComponent<GridMovementComponent>())
 		return movement->GetWorldPosition() + m_PlayerCenterOffset;
 
-	if (auto* tr = m_Player->GetComponent<dae::TransformComponent>())
+	if (auto* tr = player->GetComponent<dae::TransformComponent>())
 	{
 		const auto& pos = tr->GetWorldPosition();
 		return { pos.x + m_PlayerCenterOffset.x, pos.y + m_PlayerCenterOffset.y };
@@ -1269,9 +1409,6 @@ void digger::GameManagerComponent::DigAtPoint(const glm::vec2& point)
 
 
 	if (HasMoneyBagAt(tilePos))
-		return;
-
-	if (!IsDirt(tilePos))
 		return;
 
 
@@ -1333,28 +1470,78 @@ void digger::GameManagerComponent::DigAtPoint(const glm::vec2& point)
 	}
 
 	const int requiredRemoved =
-		static_cast<int>(DirtPieceCount * 0.95f);
+		static_cast<int>(DirtPieceCount * 0.90f);
 
 	if (removedCount >= requiredRemoved)
 	{
-		for (int i = 0; i < DirtPieceCount; ++i)
-		{
-			if (!tile.removed[i])
-			{
-				tile.removed[i] = true;
-
-				if (auto* obj = tile.pieces[i])
-				{
-					if (auto* tr = obj->GetComponent<dae::TransformComponent>())
-						tr->SetLocalPosition(-5000.f, -5000.f);
-				}
-			}
-		}
-
+		
 		m_LevelData.tiles[tilePos.y][tilePos.x] = '.';
 	}
 }
 
+
+void digger::GameManagerComponent::SpawnDiggerPlayer(
+	int playerIndex,
+	const glm::ivec2& spawn,
+	const std::string& textureFile)
+{
+	auto player = std::make_unique<dae::GameObject>();
+	auto* playerPtr = player.get();
+
+	player->AddComponent<dae::TransformComponent>(playerPtr);
+
+	auto* movement = player->AddComponent<GridMovementComponent>(
+		playerPtr,
+		this,
+		m_TileSize,
+		160.f,
+		m_MapOffset);
+
+	movement->SetGridPosition(spawn);
+
+
+	player->AddComponent<dae::RenderComponent>(
+		playerPtr,
+		dae::ResourceManager::GetInstance().LoadTexture(textureFile));
+
+	auto* actor = player->AddComponent<dae::GameActorComponent>(
+		playerPtr,
+		4,
+		0,
+		playerIndex + 1);
+
+	dae::EventBus::GetInstance().GetSubject().AddObserver(actor);
+
+	if (playerIndex >= static_cast<int>(m_Players.size()))
+		m_Players.resize(static_cast<size_t>(playerIndex + 1));
+
+	m_Players[static_cast<size_t>(playerIndex)] =
+		PlayerRuntime{
+			playerPtr,
+			actor,
+			spawn,
+			4,
+			true,
+			false,
+			0.f
+	};
+
+	m_LevelObjects.push_back(playerPtr);
+	m_Scene->Add(std::move(player));
+}
+
+
+void digger::GameManagerComponent::RemovePlayerObservers()
+{
+	for (auto& player : m_Players)
+	{
+		if (player.actor)
+		{
+			dae::EventBus::GetInstance().GetSubject().RemoveObserver(player.actor);
+			player.actor = nullptr;
+		}
+	}
+}
 
 void digger::GameManagerComponent::SpawnEnemy()
 {
@@ -1777,3 +1964,136 @@ void digger::GameManagerComponent::RemoveAllFireballs()
 	
 }
 
+glm::ivec2 digger::GameManagerComponent::GetClosestAlivePlayerGridPosition(
+	const glm::ivec2& fromGrid) const
+{
+	float bestDistanceSq = std::numeric_limits<float>::max();
+	int bestIndex = -1;
+
+	for (int i = 0; i < static_cast<int>(m_Players.size()); ++i)
+	{
+		const auto& player = m_Players[static_cast<size_t>(i)];
+
+		if (!player.alive || player.dying || !player.object)
+			continue;
+
+		const glm::ivec2 playerGrid = GetPlayerGridPosition(i);
+		const glm::ivec2 diff = playerGrid - fromGrid;
+
+		const float distSq =
+			static_cast<float>(diff.x * diff.x + diff.y * diff.y);
+
+		if (distSq < bestDistanceSq)
+		{
+			bestDistanceSq = distSq;
+			bestIndex = i;
+		}
+	}
+
+	if (bestIndex == -1)
+		return {};
+
+	return GetPlayerGridPosition(bestIndex);
+}
+
+int digger::GameManagerComponent::GetPlayerIndexAtWorldPosition(
+	const glm::vec2& worldPos,
+	float radius) const
+{
+
+	const float radiusSq = radius * radius;
+
+	for (int i = 0; i < static_cast<int>(m_Players.size()); ++i)
+	{
+		const auto& player = m_Players[static_cast<size_t>(i)];
+
+		if (!player.alive || player.dying || !player.object)
+			continue;
+
+		const glm::vec2 playerPos = GetPlayerWorldPosition(i);
+		const glm::vec2 diff = playerPos - worldPos;
+
+		if ((diff.x * diff.x + diff.y * diff.y) <= radiusSq)
+			return i;
+	}
+
+	return -1;
+}
+
+int digger::GameManagerComponent::GetPlayerIndexAtGridPosition(
+	const glm::ivec2& pos) const
+{
+	for (int i = 0; i < static_cast<int>(m_Players.size()); ++i)
+	{
+		if (!IsPlayerAlive(i))
+			continue;
+
+		if (GetPlayerGridPosition(i) == pos)
+			return i;
+	}
+
+	return -1;
+}
+
+void digger::GameManagerComponent::DamagePlayer(int playerIndex)
+{
+	if (m_ScreenState != GameScreenState::Playing)
+		return;
+
+	if (m_DeathSequenceActive)
+		return;
+
+	if (playerIndex < 0 ||
+		playerIndex >= static_cast<int>(m_Players.size()))
+	{
+		return;
+	}
+
+	auto& player = m_Players[static_cast<size_t>(playerIndex)];
+
+	if (!player.alive || player.dying || !player.object)
+		return;
+
+	if (player.damageCooldown > 0.f)
+		return;
+
+	player.damageCooldown = m_DamageCooldownDuration;
+
+	//mark dying
+	// This prevents a second enemy/moneybag collision from starting another death sequence
+	player.dying = true;
+
+	--player.lives;
+	UpdateHUD();
+
+	dae::EventBus::GetInstance().GetSubject().Notify(
+		dae::Event{ dae::EventType::DamageRequested, player.object, 1 });
+
+	if (auto* tr = player.object->GetComponent<dae::TransformComponent>())
+	{
+		const auto& pos = tr->GetWorldPosition();
+		m_PlayerDeathWorldPosition = { pos.x, pos.y };
+	}
+	else
+	{
+		m_PlayerDeathWorldPosition = {};
+	}
+
+	m_DeathPlayerIndex = playerIndex;
+
+	BeginPlayerDeathSequence();
+}
+
+bool digger::GameManagerComponent::AreAllPlayersDead() const
+{
+	if (m_Players.empty())
+		return true;
+
+	for (const auto& player : m_Players)
+	{
+		if (player.alive)
+			return false;
+	}
+
+	return true;
+}

@@ -109,7 +109,31 @@ glm::ivec2 digger::EnemyComponent::GetGridPosition() const
 
 glm::ivec2 digger::EnemyComponent::GetPlayerGridPosition() const
 {
-	return m_Manager ? m_Manager->GetPlayerGridPosition() : glm::ivec2{};
+	if (!m_Manager)
+		return {};
+
+	return m_Manager->GetClosestAlivePlayerGridPosition(GetGridPosition());
+}
+
+int digger::EnemyComponent::GetTouchingPlayerIndex() const
+{
+	if (!m_Manager)
+		return -1;
+
+	auto* myTransform = GetGameObject()->GetComponent<dae::TransformComponent>();
+	if (!myTransform)
+		return -1;
+
+	const auto& myPos3 = myTransform->GetWorldPosition();
+
+	glm::vec2 enemyCenter{
+		myPos3.x + 32.f,
+		myPos3.y + 32.f
+	};
+
+	return m_Manager->GetPlayerIndexAtWorldPosition(
+		enemyCenter,
+		m_Manager->GetCollisionRadius());
 }
 
 void digger::EnemyComponent::SetGridPosition(const glm::ivec2& pos)

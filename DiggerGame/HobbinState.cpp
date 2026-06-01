@@ -25,9 +25,11 @@ void digger::HobbinState::Update(EnemyComponent& enemy)
 {
 	m_StateTimer += dae::MiniginTime::GetDeltaTime();
 
-	if (enemy.IsOnPlayer())
+	const int touchedPlayer = enemy.GetTouchingPlayerIndex();
+
+	if (touchedPlayer != -1)
 	{
-		enemy.GetManager()->DamagePlayer();
+		enemy.GetManager()->DamagePlayer(touchedPlayer);
 		return;
 	}
 

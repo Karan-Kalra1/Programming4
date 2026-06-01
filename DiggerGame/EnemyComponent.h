@@ -20,6 +20,8 @@ namespace digger
 
 		void MoveTowardPlayer(bool canDig);
 
+		int GetTouchingPlayerIndex() const;
+
 		glm::ivec2 GetGridPosition() const;
 		glm::ivec2 GetPlayerGridPosition() const;
 

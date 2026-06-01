@@ -8,7 +8,6 @@
 #include "MiniginTime.h"
 #include "EnemyComponent.h"
 #include "GridMovementComponent.h"
-#include "EventBus.h"
 #include "ServiceLocator.h"
 #include "GameSounds.h"
 
@@ -46,19 +45,31 @@ void digger::MoneyBagComponent::Update()
 		break;
 
 	case MoneyBagState::BrokenGold:
-		const auto playerPos = m_Manager->GetPlayerWorldPosition();
+	{
+		if (!m_Manager)
+			return;
 
 		auto* tr = GetOwner()->GetComponent<dae::TransformComponent>();
+		if (!tr)
+			return;
+
 		const auto& pos = tr->GetWorldPosition();
 
-		glm::vec2 goldCenter{ pos.x + 32.f, pos.y + 32.f };
+		glm::vec2 goldCenter{
+			pos.x + 32.f,
+			pos.y + 32.f
+		};
 
-		const float dx = goldCenter.x - playerPos.x;
-		const float dy = goldCenter.y - playerPos.y;
+		const int playerIndex =
+			m_Manager->GetPlayerIndexAtWorldPosition(
+				goldCenter,
+				m_Manager->GetCollisionRadius());
 
-		if ((dx * dx + dy * dy) < 32.f * 32.f)
+		if (playerIndex != -1)
 			m_Manager->CollectGold(GetOwner());
+
 		break;
+	}
 	}
 }
 
@@ -87,7 +98,6 @@ void digger::MoneyBagComponent::SetState(MoneyBagState state)
 
 	auto& sound = dae::ServiceLocator::GetSoundSystem();
 
-	// Exit old state
 	if (m_State == MoneyBagState::WaitingToFall)
 		sound.Stop(GameSound::MoneyBagWiggle);
 
@@ -96,7 +106,6 @@ void digger::MoneyBagComponent::SetState(MoneyBagState state)
 
 	m_State = state;
 
-	// Enter new state
 	if (m_State == MoneyBagState::WaitingToFall)
 	{
 		sound.PlayLooping(GameSound::MoneyBagWiggle, 0.8f);
@@ -119,10 +128,16 @@ void digger::MoneyBagComponent::UpdateStable()
 	if (!m_Manager)
 		return;
 
-	const glm::ivec2 below{ m_GridPosition.x, m_GridPosition.y + 1 };
+	const glm::ivec2 below{
+		m_GridPosition.x,
+		m_GridPosition.y + 1
+	};
 
-	if (!m_Manager->HasDirtBelow(m_GridPosition) &&
-		!m_Manager->IsPlayerAtGridPosition(below))
+	const bool hasSupport = m_Manager->HasDirtBelow(m_GridPosition);
+	const bool playerUnderBag =
+		m_Manager->GetPlayerIndexAtGridPosition(below) != -1;
+
+	if (!hasSupport && !playerUnderBag)
 	{
 		m_FallDelayTimer = 0.f;
 		SetState(MoneyBagState::WaitingToFall);
@@ -131,11 +146,19 @@ void digger::MoneyBagComponent::UpdateStable()
 
 void digger::MoneyBagComponent::UpdateWaitingToFall()
 {
-	const glm::ivec2 below{ m_GridPosition.x, m_GridPosition.y + 1 };
+	if (!m_Manager)
+		return;
 
-	if (m_Manager &&
-		(m_Manager->HasDirtBelow(m_GridPosition) ||
-			m_Manager->IsPlayerAtGridPosition(below)))
+	const glm::ivec2 below{
+		m_GridPosition.x,
+		m_GridPosition.y + 1
+	};
+
+	const bool hasSupport = m_Manager->HasDirtBelow(m_GridPosition);
+	const bool playerUnderBag =
+		m_Manager->GetPlayerIndexAtGridPosition(below) != -1;
+
+	if (hasSupport || playerUnderBag)
 	{
 		m_FallDelayTimer = 0.f;
 		SetState(MoneyBagState::Stable);
@@ -147,7 +170,9 @@ void digger::MoneyBagComponent::UpdateWaitingToFall()
 	if (m_FallDelayTimer >= m_FallDelay)
 	{
 		m_FallDistance = 0;
-		m_TargetWorldPosition = GridToWorld(m_GridPosition + glm::ivec2{ 0, 1 });
+		m_TargetWorldPosition =
+			GridToWorld(m_GridPosition + glm::ivec2{ 0, 1 });
+
 		SetState(MoneyBagState::Falling);
 	}
 }
@@ -171,16 +196,19 @@ void digger::MoneyBagComponent::UpdateFalling()
 		{
 			if (m_FallDistance >= 2)
 			{
-				BreakIntoGold();
 				KillDraggedTargets();
+				BreakIntoGold();
 			}
-				
 			else
+			{
+				ReleaseDraggedTargets();
 				SetState(MoneyBagState::Stable);
+			}
 		}
 		else
 		{
-			m_TargetWorldPosition = GridToWorld(m_GridPosition + glm::ivec2{ 0, 1 });
+			m_TargetWorldPosition =
+				GridToWorld(m_GridPosition + glm::ivec2{ 0, 1 });
 		}
 	}
 	else
@@ -200,11 +228,9 @@ bool digger::MoneyBagComponent::TryPush(const glm::ivec2& direction)
 	if (m_State != MoneyBagState::Stable)
 		return false;
 
-	// Cannot push vertically
 	if (direction.y != 0)
 		return false;
 
-	// Cannot push while supported by dirt
 	if (!m_HasFallen && m_Manager && m_Manager->HasDirtBelow(m_GridPosition))
 		return false;
 
@@ -227,7 +253,6 @@ void digger::MoneyBagComponent::BreakIntoGold()
 		render->SetTexture(
 			dae::ResourceManager::GetInstance().LoadTexture("Gold.png"));
 	}
-
 }
 
 void digger::MoneyBagComponent::UpdateVisual()
@@ -244,22 +269,26 @@ void digger::MoneyBagComponent::CheckCrushTargets()
 		return;
 
 	const auto& bagPos3 = bagTr->GetWorldPosition();
-	glm::vec2 bagCenter{ bagPos3.x + 32.f, bagPos3.y + 32.f };
 
-	if (!m_DraggedPlayer)
+	glm::vec2 bagCenter{
+		bagPos3.x + 32.f,
+		bagPos3.y + 32.f
+	};
+
+	if (m_DraggedPlayerIndex == -1)
 	{
-		glm::vec2 playerCenter = m_Manager->GetPlayerWorldPosition();
-
-		const float dx = bagCenter.x - playerCenter.x;
-		const float dy = bagCenter.y - playerCenter.y;
-
-		if ((dx * dx + dy * dy) <= 30.f * 30.f)
-			m_DraggedPlayer = m_Manager->GetPlayer();
+		m_DraggedPlayerIndex =
+			m_Manager->GetPlayerIndexAtWorldPosition(
+				bagCenter,
+				30.f);
 	}
 
 	if (!m_DraggedEnemy)
 	{
-		m_DraggedEnemy = m_Manager->GetEnemyAtWorldPosition(bagCenter, 30.f);
+		m_DraggedEnemy =
+			m_Manager->GetEnemyAtWorldPosition(
+				bagCenter,
+				30.f);
 	}
 }
 
@@ -271,25 +300,38 @@ void digger::MoneyBagComponent::DragTargetsDown()
 
 	const auto& bagPos3 = bagTr->GetWorldPosition();
 
-	if (m_DraggedPlayer)
+	if (m_DraggedPlayerIndex != -1 && m_Manager)
 	{
-		if (auto* tr = m_DraggedPlayer->GetComponent<dae::TransformComponent>())
-			tr->SetLocalPosition(bagPos3.x, bagPos3.y);
+		auto* player =
+			m_Manager->GetPlayer(m_DraggedPlayerIndex);
+
+		if (player)
+		{
+			if (auto* movement = player->GetComponent<GridMovementComponent>())
+				movement->ReleaseAllDirections();
+
+			if (auto* tr = player->GetComponent<dae::TransformComponent>())
+				tr->SetLocalPosition(bagPos3.x, bagPos3.y);
+		}
 	}
 
 	if (m_DraggedEnemy)
 	{
-		if (auto* tr = m_DraggedEnemy->GetGameObject()->GetComponent<dae::TransformComponent>())
+		if (auto* tr =
+			m_DraggedEnemy->GetGameObject()
+			->GetComponent<dae::TransformComponent>())
+		{
 			tr->SetLocalPosition(bagPos3.x, bagPos3.y);
+		}
 	}
 }
 
 void digger::MoneyBagComponent::KillDraggedTargets()
 {
-	if (m_DraggedPlayer)
+	if (m_DraggedPlayerIndex != -1 && m_Manager)
 	{
-		m_Manager->DamagePlayer();
-		m_DraggedPlayer = nullptr;
+		m_Manager->DamagePlayer(m_DraggedPlayerIndex);
+		m_DraggedPlayerIndex = -1;
 	}
 
 	if (m_DraggedEnemy)
@@ -297,4 +339,10 @@ void digger::MoneyBagComponent::KillDraggedTargets()
 		m_DraggedEnemy->Kill();
 		m_DraggedEnemy = nullptr;
 	}
+}
+
+void digger::MoneyBagComponent::ReleaseDraggedTargets()
+{
+	m_DraggedPlayerIndex = -1;
+	m_DraggedEnemy = nullptr;
 }

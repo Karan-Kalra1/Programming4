@@ -25,7 +25,7 @@ namespace digger
 
 		glm::ivec2 GetGridPosition() const;
 		glm::vec2 GetWorldPosition() const { return m_WorldPosition; }
-
+		void ReleaseAllDirections();
 		glm::ivec2 GetFacingDirection() const { return m_FacingDirection; }
 		
 
