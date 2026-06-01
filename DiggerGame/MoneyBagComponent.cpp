@@ -9,6 +9,8 @@
 #include "EnemyComponent.h"
 #include "GridMovementComponent.h"
 #include "EventBus.h"
+#include "ServiceLocator.h"
+#include "GameSounds.h"
 
 #include <glm/geometric.hpp>
 
@@ -26,6 +28,9 @@ digger::MoneyBagComponent::MoneyBagComponent(
 
 void digger::MoneyBagComponent::Update()
 {
+	if (m_Manager && m_Manager->IsGameplayFrozen())
+		return;
+
 	switch (m_State)
 	{
 	case MoneyBagState::Stable:
@@ -77,7 +82,36 @@ glm::vec2 digger::MoneyBagComponent::GridToWorld(const glm::ivec2& grid) const
 
 void digger::MoneyBagComponent::SetState(MoneyBagState state)
 {
+	if (m_State == state)
+		return;
+
+	auto& sound = dae::ServiceLocator::GetSoundSystem();
+
+	// Exit old state
+	if (m_State == MoneyBagState::WaitingToFall)
+		sound.Stop(GameSound::MoneyBagWiggle);
+
+	if (m_State == MoneyBagState::Falling)
+		sound.Stop(GameSound::MoneyBagFalling);
+
 	m_State = state;
+
+	// Enter new state
+	if (m_State == MoneyBagState::WaitingToFall)
+	{
+		sound.PlayLooping(GameSound::MoneyBagWiggle, 0.8f);
+	}
+	else if (m_State == MoneyBagState::Falling)
+	{
+		sound.Stop(GameSound::MoneyBagWiggle);
+		sound.PlayLooping(GameSound::MoneyBagFalling, 0.9f);
+	}
+	else if (m_State == MoneyBagState::Stable ||
+		m_State == MoneyBagState::BrokenGold)
+	{
+		sound.Stop(GameSound::MoneyBagWiggle);
+		sound.Stop(GameSound::MoneyBagFalling);
+	}
 }
 
 void digger::MoneyBagComponent::UpdateStable()

@@ -36,3 +36,20 @@ bool dae::LoggingSoundSystem::IsMuted() const
 {
 	return m_Wrapped ? m_Wrapped->IsMuted() : true;
 }
+
+void dae::LoggingSoundSystem::PlayLooping(SoundId id, float volume)
+{
+	std::cout << "[Sound] Play looping id: " << id
+		<< " volume: " << volume << '\n';
+
+	if (m_Wrapped)
+		m_Wrapped->PlayLooping(id, volume);
+}
+
+void dae::LoggingSoundSystem::Stop(SoundId id)
+{
+	std::cout << "[Sound] Stop id: " << id << '\n';
+
+	if (m_Wrapped)
+		m_Wrapped->Stop(id);
+}

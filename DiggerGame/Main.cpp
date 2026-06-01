@@ -40,6 +40,8 @@
 #include "HighScoreConfirmCommand.h"
 #include "HighScoreCursorCommand.h"
 #include "HighScoreLetterCommand.h"
+#include "MenuConfirmCommand.h"
+#include "MenuNavigateCommand.h"
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -58,7 +60,7 @@ static void load()
 	auto* manager =
 		managerObject->AddComponent<digger::GameManagerComponent>(managerGo, &scene);
 
-	manager->StartGame(digger::GameMode::SinglePlayer);
+	manager->ShowStartMenu();
 
 	auto& input = dae::InputManager::GetInstance();
 
@@ -124,6 +126,25 @@ static void load()
 	input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,
 		std::make_unique<digger::HighScoreConfirmCommand>(manager));
 
+
+	input.BindKeyboardCommand(SDL_SCANCODE_UP, dae::KeyState::Down,
+		std::make_unique<digger::MenuNavigateCommand>(manager, -1));
+
+	input.BindKeyboardCommand(SDL_SCANCODE_DOWN, dae::KeyState::Down,
+		std::make_unique<digger::MenuNavigateCommand>(manager, 1));
+
+	input.BindKeyboardCommand(SDL_SCANCODE_RETURN, dae::KeyState::Down,
+		std::make_unique<digger::MenuConfirmCommand>(manager));
+
+
+	input.BindControllerCommand(0, dae::ControllerButton::DPadUp, dae::KeyState::Down,
+		std::make_unique<digger::MenuNavigateCommand>(manager, -1));
+
+	input.BindControllerCommand(0, dae::ControllerButton::DPadDown, dae::KeyState::Down,
+		std::make_unique<digger::MenuNavigateCommand>(manager, 1));
+
+	input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,
+		std::make_unique<digger::MenuConfirmCommand>(manager));
 
 	scene.Add(std::move(managerObject));
 }

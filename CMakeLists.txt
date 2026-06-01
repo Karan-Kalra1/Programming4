@@ -259,6 +259,8 @@ add_executable(${GAME_TARGET} ${GAME_TARGET_PARAM}
   DiggerGame/HighScoreLetterCommand.cpp
   DiggerGame/HighScoreCursorCommand.cpp
   DiggerGame/HighScoreConfirmCommand.cpp
+  DiggerGame/MenuConfirmCommand.cpp 
+  DiggerGame/MenuNavigateCommand.cpp
 )
 
 target_include_directories(${GAME_TARGET} PRIVATE

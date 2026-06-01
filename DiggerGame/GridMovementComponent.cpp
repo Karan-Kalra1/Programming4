@@ -107,6 +107,9 @@ void digger::GridMovementComponent::ReleaseDirection(const glm::ivec2& direction
 
 void digger::GridMovementComponent::Update()
 {
+	if (m_Manager && m_Manager->IsGameplayFrozen())
+		return;
+
 	const float dt = dae::MiniginTime::GetDeltaTime();
 
 	if (m_CurrentDirection == glm::ivec2{})

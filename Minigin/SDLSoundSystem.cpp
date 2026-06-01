@@ -4,12 +4,12 @@
 #include <SDL3_mixer/SDL_mixer.h>
 
 #include <algorithm>
+#include <atomic>
 #include <condition_variable>
 #include <iostream>
 #include <mutex>
 #include <queue>
 #include <string>
-#include <atomic>
 #include <thread>
 #include <unordered_map>
 
@@ -40,6 +40,16 @@ namespace dae
 
 			if (m_Worker.joinable())
 				m_Worker.join();
+
+			for (auto& [id, track] : m_Tracks)
+			{
+				(void)id;
+
+				if (track)
+					MIX_DestroyTrack(track);
+			}
+
+			m_Tracks.clear();
 
 			for (auto& [id, audio] : m_LoadedSounds)
 			{
@@ -74,6 +84,20 @@ namespace dae
 			Enqueue(Request{ RequestType::Play, id, volume, {} });
 		}
 
+		void PlayLooping(SoundId id, float volume)
+		{
+			if (m_Muted.load())
+				return;
+
+			volume = std::clamp(volume, 0.0f, 1.0f);
+			Enqueue(Request{ RequestType::PlayLooping, id, volume, {} });
+		}
+
+		void Stop(SoundId id)
+		{
+			Enqueue(Request{ RequestType::Stop, id, 1.0f, {} });
+		}
+
 		void StopAll()
 		{
 			Enqueue(Request{ RequestType::StopAll });
@@ -97,6 +121,8 @@ namespace dae
 		{
 			Register,
 			Play,
+			PlayLooping,
+			Stop,
 			StopAll,
 			Quit
 		};
@@ -149,9 +175,16 @@ namespace dae
 					PlayInternal(request.id, request.volume);
 					break;
 
+				case RequestType::PlayLooping:
+					PlayLoopingInternal(request.id, request.volume);
+					break;
+
+				case RequestType::Stop:
+					StopInternal(request.id);
+					break;
+
 				case RequestType::StopAll:
-					if (m_Mixer)
-						MIX_StopAllTracks(m_Mixer, 0);
+					StopAllInternal();
 					break;
 
 				case RequestType::Quit:
@@ -162,17 +195,71 @@ namespace dae
 
 		void PlayInternal(SoundId id, float volume)
 		{
-			MIX_Audio* audio = GetOrLoad(id);
-			if (!audio)
+			if (m_Muted.load())
 				return;
 
-			// SDL3_mixer fire-and-forget playback.
+			MIX_Audio* audio = GetOrLoad(id);
+			if (!audio || !m_Mixer)
+				return;
+
+			// Fire-and-forget one-shot sound.
+			// SDL3_mixer's MIX_PlayAudio does not expose a track to stop later.
 			(void)volume;
 
 			if (!MIX_PlayAudio(m_Mixer, audio))
 			{
 				std::cerr << "MIX_PlayAudio failed: " << SDL_GetError() << '\n';
 			}
+		}
+
+		void PlayLoopingInternal(SoundId id, float volume)
+		{
+			if (m_Muted.load())
+				return;
+
+			MIX_Audio* audio = GetOrLoad(id);
+			if (!audio || !m_Mixer)
+				return;
+
+			MIX_Track* track = GetOrCreateTrack(id);
+			if (!track)
+				return;
+
+			if (!MIX_SetTrackAudio(track, audio))
+			{
+				std::cerr << "MIX_SetTrackAudio failed: " << SDL_GetError() << '\n';
+				return;
+			}
+
+			MIX_SetTrackGain(track, volume);
+
+			SDL_PropertiesID props = SDL_CreateProperties();
+			SDL_SetNumberProperty(props, MIX_PROP_PLAY_LOOPS_NUMBER, -1);
+
+			if (!MIX_PlayTrack(track, props))
+			{
+				std::cerr << "MIX_PlayTrack failed: " << SDL_GetError() << '\n';
+			}
+
+			SDL_DestroyProperties(props);
+		}
+
+		void StopInternal(SoundId id)
+		{
+			auto it = m_Tracks.find(id);
+			if (it == m_Tracks.end() || !it->second)
+				return;
+
+			if (!MIX_StopTrack(it->second, 0))
+			{
+				std::cerr << "MIX_StopTrack failed: " << SDL_GetError() << '\n';
+			}
+		}
+
+		void StopAllInternal()
+		{
+			if (m_Mixer)
+				MIX_StopAllTracks(m_Mixer, 0);
 		}
 
 		MIX_Audio* GetOrLoad(SoundId id)
@@ -199,14 +286,37 @@ namespace dae
 			return audio;
 		}
 
+		MIX_Track* GetOrCreateTrack(SoundId id)
+		{
+			if (auto it = m_Tracks.find(id); it != m_Tracks.end())
+				return it->second;
+
+			if (!m_Mixer)
+				return nullptr;
+
+			MIX_Track* track = MIX_CreateTrack(m_Mixer);
+			if (!track)
+			{
+				std::cerr << "MIX_CreateTrack failed: " << SDL_GetError() << '\n';
+				return nullptr;
+			}
+
+			m_Tracks[id] = track;
+			return track;
+		}
+
 		std::unordered_map<SoundId, std::string> m_SoundPaths{};
 		std::unordered_map<SoundId, MIX_Audio*> m_LoadedSounds{};
+		std::unordered_map<SoundId, MIX_Track*> m_Tracks{};
+
 		MIX_Mixer* m_Mixer{};
-		std::atomic_bool m_Muted{ false };
+
 		std::queue<Request> m_Requests{};
 		std::mutex m_Mutex{};
 		std::condition_variable m_Condition{};
 		std::thread m_Worker{};
+
+		std::atomic_bool m_Muted{ false };
 	};
 
 	SDLSoundSystem::SDLSoundSystem()
@@ -224,6 +334,16 @@ namespace dae
 	void SDLSoundSystem::Play(SoundId id, float volume)
 	{
 		m_Impl->Play(id, volume);
+	}
+
+	void SDLSoundSystem::PlayLooping(SoundId id, float volume)
+	{
+		m_Impl->PlayLooping(id, volume);
+	}
+
+	void SDLSoundSystem::Stop(SoundId id)
+	{
+		m_Impl->Stop(id);
 	}
 
 	void SDLSoundSystem::StopAll()

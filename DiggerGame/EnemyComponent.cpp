@@ -81,6 +81,9 @@ digger::EnemyComponent::~EnemyComponent() = default;
 
 void digger::EnemyComponent::Update()
 {
+	if (m_Manager && m_Manager->IsGameplayFrozen())
+		return;
+
 	UpdateSmoothMovement();
 
 	if (m_State)

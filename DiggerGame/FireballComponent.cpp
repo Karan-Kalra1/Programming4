@@ -18,6 +18,9 @@ digger::FireballComponent::FireballComponent(
 
 void digger::FireballComponent::Update()
 {
+	if (m_Manager && m_Manager->IsGameplayFrozen())
+		return;
+
 	auto* tr = GetOwner()->GetComponent<dae::TransformComponent>();
 	if (!tr || !m_Manager)
 		return;

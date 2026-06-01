@@ -17,6 +17,8 @@
 #include "FireballComponent.h"
 #include "MoneyBagComponent.h"
 #include "TextComponent.h"
+#include "GameSounds.h"
+#include <SDL3/SDL.h>
 
 #include <memory>
 #include <iostream>
@@ -37,19 +39,209 @@ digger::GameManagerComponent::GameManagerComponent(dae::GameObject* owner, dae::
 
 void digger::GameManagerComponent::StartGame(GameMode mode)
 {
+	ClearScreenUI();
+	ClearHUD();
+	ClearLevel();
+
 	m_Mode = mode;
 	m_Score = 0;
 	m_Lives = 4;
+	m_CurrentLevel = 0;
+
 	m_ScreenState = GameScreenState::Playing;
 
 	m_HighScores.Load();
 
-	dae::ServiceLocator::GetSoundSystem().RegisterSound(
-		DiamondPickUp,
-		"Data/sounds/PickUpDiamond.wav");
+	auto& sound = dae::ServiceLocator::GetSoundSystem();
+
+	sound.RegisterSound(GameSound::DiamondPickUp, "Data/sounds/PickUpDiamond.wav");
+
+	sound.RegisterSound(GameSound::BackgroundMusic, "Data/sounds/MainGameOST.wav");
+
+	sound.RegisterSound(GameSound::MoneyBagWiggle, "Data/sounds/GoldBagWiggle.wav");
+	sound.RegisterSound(GameSound::MoneyBagFalling, "Data/sounds/FallingGold.wav");
+
+	sound.RegisterSound(GameSound::PlayerDeathSfx, "Data/sounds/DeathSound.wav");
+	sound.RegisterSound(GameSound::PlayerDeathMusic, "Data/sounds/DeathMusic2.wav");
+
+	sound.RegisterSound(GameSound::BulletTravel, "Data/sounds/BulletFiring.wav");
+	sound.RegisterSound(GameSound::BulletHit, "Data/sounds/Hit.wav");
+
+	sound.PlayLooping(GameSound::BackgroundMusic, 0.5f);
 
 	LoadLevel(0);
 	CreateHUD();
+}
+
+void digger::GameManagerComponent::ShowStartMenu()
+{
+	ClearLevel();
+	ClearHUD();
+	ClearScreenUI();
+
+	m_ScreenState = GameScreenState::StartMenu;
+	m_StartMenuIndex = 0;
+
+	auto fontTitle =
+		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 48);
+
+	auto fontMenu =
+		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 32);
+
+	auto addText = [&](const std::string& text, float x, float y, std::shared_ptr<dae::Font> font)
+		{
+			auto obj = std::make_unique<dae::GameObject>();
+			auto* go = obj.get();
+
+			go->AddComponent<dae::TransformComponent>(go)
+				->SetLocalPosition(x, y);
+
+			auto* textComp =
+				go->AddComponent<dae::TextComponent>(go, text, font);
+
+			m_ScreenUIObjects.push_back(go);
+			m_Scene->Add(std::move(obj));
+
+			return textComp;
+		};
+
+	m_StartMenuTitleText = addText("DIGGER", 365.f, 100.f, fontTitle);
+	m_StartMenuPlayText = addText("", 390.f, 230.f, fontMenu);
+	m_StartMenuQuitText = addText("", 390.f, 285.f, fontMenu);
+
+	RefreshStartMenuText();
+}
+
+void digger::GameManagerComponent::RefreshStartMenuText()
+{
+	if (m_StartMenuPlayText)
+	{
+		m_StartMenuPlayText->SetText(
+			m_StartMenuIndex == 0 ? "> PLAY" : "  PLAY");
+	}
+
+	if (m_StartMenuQuitText)
+	{
+		m_StartMenuQuitText->SetText(
+			m_StartMenuIndex == 1 ? "> QUIT" : "  QUIT");
+	}
+}
+
+void digger::GameManagerComponent::ShowModeSelectMenu()
+{
+	ClearScreenUI();
+
+	m_ScreenState = GameScreenState::ModeSelect;
+	m_ModeMenuIndex = 0;
+
+	auto fontTitle =
+		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 40);
+
+	auto fontMenu =
+		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 28);
+
+	auto addText = [&](const std::string& text, float x, float y, std::shared_ptr<dae::Font> font)
+		{
+			auto obj = std::make_unique<dae::GameObject>();
+			auto* go = obj.get();
+
+			go->AddComponent<dae::TransformComponent>(go)
+				->SetLocalPosition(x, y);
+
+			auto* textComp =
+				go->AddComponent<dae::TextComponent>(go, text, font);
+
+			m_ScreenUIObjects.push_back(go);
+			m_Scene->Add(std::move(obj));
+
+			return textComp;
+		};
+
+	m_ModeMenuTitleText = addText("SELECT MODE", 310.f, 100.f, fontTitle);
+	m_ModeSingleText = addText("", 330.f, 210.f, fontMenu);
+	m_ModeCoopText = addText("", 330.f, 260.f, fontMenu);
+	m_ModeVersusText = addText("", 330.f, 310.f, fontMenu);
+
+	RefreshModeSelectText();
+}
+
+void digger::GameManagerComponent::RefreshModeSelectText()
+{
+	if (m_ModeSingleText)
+	{
+		m_ModeSingleText->SetText(
+			m_ModeMenuIndex == 0 ? "> SINGLE PLAYER" : "  SINGLE PLAYER");
+	}
+
+	if (m_ModeCoopText)
+	{
+		m_ModeCoopText->SetText(
+			m_ModeMenuIndex == 1 ? "> COOP" : "  COOP");
+	}
+
+	if (m_ModeVersusText)
+	{
+		m_ModeVersusText->SetText(
+			m_ModeMenuIndex == 2 ? "> VERSUS" : "  VERSUS");
+	}
+}
+
+void digger::GameManagerComponent::NavigateMenu(int delta)
+{
+	if (m_ScreenState == GameScreenState::StartMenu)
+	{
+		m_StartMenuIndex += delta;
+
+		if (m_StartMenuIndex < 0)
+			m_StartMenuIndex = 1;
+		else if (m_StartMenuIndex > 1)
+			m_StartMenuIndex = 0;
+
+		RefreshStartMenuText();
+		return;
+	}
+
+	if (m_ScreenState == GameScreenState::ModeSelect)
+	{
+		m_ModeMenuIndex += delta;
+
+		if (m_ModeMenuIndex < 0)
+			m_ModeMenuIndex = 2;
+		else if (m_ModeMenuIndex > 2)
+			m_ModeMenuIndex = 0;
+
+		RefreshModeSelectText();
+		return;
+	}
+}
+
+void digger::GameManagerComponent::ConfirmMenuSelection()
+{
+	if (m_ScreenState == GameScreenState::StartMenu)
+	{
+		if (m_StartMenuIndex == 0)
+		{
+			ShowModeSelectMenu();
+		}
+		else
+		{
+			QuitGame();
+		}
+
+		return;
+	}
+
+	if (m_ScreenState == GameScreenState::ModeSelect)
+	{
+		if (m_ModeMenuIndex == 0)
+			StartGame(GameMode::SinglePlayer);
+		else if (m_ModeMenuIndex == 1)
+			StartGame(GameMode::Coop);
+		else if (m_ModeMenuIndex == 2)
+			StartGame(GameMode::Versus);
+
+		return;
+	}
 }
 
 void digger::GameManagerComponent::CreateHUD()
@@ -72,7 +264,7 @@ void digger::GameManagerComponent::CreateHUD()
 			"Score: 0",
 			font);
 
-		m_UIObjects.push_back(obj);
+		m_HUDObjects.push_back(obj);
 		m_Scene->Add(std::move(scoreObj));
 	}
 
@@ -100,7 +292,7 @@ void digger::GameManagerComponent::CreateHUD()
 		obj->AddComponent<dae::RenderComponent>(obj, lifeTexture);
 
 		m_LifeIcons[i] = obj;
-		m_UIObjects.push_back(obj);
+		m_HUDObjects.push_back(obj);
 		m_Scene->Add(std::move(lifeObj));
 	}
 
@@ -144,9 +336,17 @@ void digger::GameManagerComponent::GameOver()
 	m_ScreenState = GameScreenState::EnteringHighScore;
 
 	ClearLevel();
-	ClearUI();
+	ClearHUD();
+	ClearScreenUI();
 
 	ShowHighScoreEntryScreen();
+}
+
+void digger::GameManagerComponent::QuitGame()
+{
+	SDL_Event quitEvent{};
+	quitEvent.type = SDL_EVENT_QUIT;
+	SDL_PushEvent(&quitEvent);
 }
 
 void digger::GameManagerComponent::ShowHighScoreEntryScreen()
@@ -170,7 +370,7 @@ void digger::GameManagerComponent::ShowHighScoreEntryScreen()
 			"GAME OVER",
 			fontBig);
 
-		m_UIObjects.push_back(go);
+		m_ScreenUIObjects.push_back(go);
 		m_Scene->Add(std::move(obj));
 	}
 
@@ -187,7 +387,7 @@ void digger::GameManagerComponent::ShowHighScoreEntryScreen()
 			"Final Score: " + std::to_string(m_Score),
 			fontSmall);
 
-		m_UIObjects.push_back(go);
+		m_ScreenUIObjects.push_back(go);
 		m_Scene->Add(std::move(obj));
 	}
 
@@ -204,7 +404,7 @@ void digger::GameManagerComponent::ShowHighScoreEntryScreen()
 			"ENTER NAME",
 			fontSmall);
 
-		m_UIObjects.push_back(go);
+		m_ScreenUIObjects.push_back(go);
 		m_Scene->Add(std::move(obj));
 	}
 
@@ -222,7 +422,7 @@ void digger::GameManagerComponent::ShowHighScoreEntryScreen()
 				"AAA",
 				fontSmall);
 
-		m_UIObjects.push_back(go);
+		m_ScreenUIObjects.push_back(go);
 		m_Scene->Add(std::move(obj));
 	}
 
@@ -240,7 +440,7 @@ void digger::GameManagerComponent::ShowHighScoreEntryScreen()
 				"^",
 				fontSmall);
 
-		m_UIObjects.push_back(go);
+		m_ScreenUIObjects.push_back(go);
 		m_Scene->Add(std::move(obj));
 	}
 
@@ -257,7 +457,7 @@ void digger::GameManagerComponent::ShowHighScoreEntryScreen()
 			"UP/DOWN: Change Letter",
 			fontSmall);
 
-		m_UIObjects.push_back(go);
+		m_ScreenUIObjects.push_back(go);
 		m_Scene->Add(std::move(obj));
 	}
 
@@ -274,7 +474,7 @@ void digger::GameManagerComponent::ShowHighScoreEntryScreen()
 			"LEFT/RIGHT: Select Letter",
 			fontSmall);
 
-		m_UIObjects.push_back(go);
+		m_ScreenUIObjects.push_back(go);
 		m_Scene->Add(std::move(obj));
 	}
 
@@ -291,7 +491,7 @@ void digger::GameManagerComponent::ShowHighScoreEntryScreen()
 			"ENTER / A: Confirm",
 			fontSmall);
 
-		m_UIObjects.push_back(go);
+		m_ScreenUIObjects.push_back(go);
 		m_Scene->Add(std::move(obj));
 	}
 
@@ -375,7 +575,8 @@ void digger::GameManagerComponent::ShowHighScoreList()
 {
 	m_ScreenState = GameScreenState::ShowingHighScores;
 
-	ClearUI();
+	ClearHUD();
+	ClearScreenUI();
 
 	auto fontTitle =
 		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 36);
@@ -399,7 +600,7 @@ void digger::GameManagerComponent::ShowHighScoreList()
 				text,
 				font);
 
-			m_UIObjects.push_back(go);
+			m_ScreenUIObjects.push_back(go);
 			m_Scene->Add(std::move(obj));
 		};
 
@@ -450,36 +651,11 @@ void digger::GameManagerComponent::ConfirmHighScoreScreen()
 
 	if (m_ScreenState == GameScreenState::ShowingHighScores)
 	{
-		ClearUI();
-
-		m_Score = 0;
-		m_Lives = 4;
-		m_CurrentLevel = 0;
-		m_ScreenState = GameScreenState::Playing;
-
-		LoadLevel(0);
-		CreateHUD();
+		ShowStartMenu();
+		return;
 	}
 }
 
-void digger::GameManagerComponent::ClearUI()
-{
-	for (auto* object : m_UIObjects)
-	{
-		if (object)
-			m_Scene->Remove(*object);
-	}
-
-	m_UIObjects.clear();
-
-	for (auto& icon : m_LifeIcons)
-		icon = nullptr;
-
-	m_ScoreText = nullptr;
-	m_HighScoreEntryText = nullptr;
-	m_HighScoreCursorText = nullptr;
-	m_HighScoreListText = nullptr;
-}
 
 void digger::GameManagerComponent::LoadLevel(int index)
 {
@@ -512,8 +688,27 @@ void digger::GameManagerComponent::SkipLevel()
 
 void digger::GameManagerComponent::Update()
 {
+
+	if (m_ScreenState == GameScreenState::StartMenu ||
+		m_ScreenState == GameScreenState::ModeSelect ||
+		m_ScreenState == GameScreenState::EnteringHighScore ||
+		m_ScreenState == GameScreenState::ShowingHighScores)
+	{
+		return;
+	}
+
 	if (m_DamageCooldown > 0.f)
 		m_DamageCooldown -= dae::MiniginTime::GetDeltaTime();
+
+	if (m_DeathSequenceActive)
+	{
+		m_DeathSequenceTimer += dae::MiniginTime::GetDeltaTime();
+
+		if (m_DeathSequenceTimer >= m_DeathSequenceDuration)
+			FinishPlayerDeathSequence();
+
+		return;
+	}
 
 	if (m_ShouldLoadNextLevel)
 	{
@@ -580,6 +775,8 @@ void digger::GameManagerComponent::ClearLevel()
 		m_PlayerActor = nullptr;
 	}
 
+	RemoveAllFireballs();
+
 	for (auto* object : m_LevelObjects)
 	{
 		if (object)
@@ -592,6 +789,51 @@ void digger::GameManagerComponent::ClearLevel()
 	m_DirtTiles.clear();
 	m_MoneyBags.clear();
 	m_Player = nullptr;
+
+	RemoveTombstone();
+
+	dae::ServiceLocator::GetSoundSystem().Stop(GameSound::MoneyBagWiggle);
+	dae::ServiceLocator::GetSoundSystem().Stop(GameSound::MoneyBagFalling);
+}
+
+void digger::GameManagerComponent::ClearScreenUI()
+{
+	for (auto* object : m_ScreenUIObjects)
+	{
+		if (object)
+			m_Scene->Remove(*object);
+	}
+
+	m_ScreenUIObjects.clear();
+
+	m_StartMenuTitleText = nullptr;
+	m_StartMenuPlayText = nullptr;
+	m_StartMenuQuitText = nullptr;
+
+	m_ModeMenuTitleText = nullptr;
+	m_ModeSingleText = nullptr;
+	m_ModeCoopText = nullptr;
+	m_ModeVersusText = nullptr;
+
+	m_HighScoreEntryText = nullptr;
+	m_HighScoreCursorText = nullptr;
+	m_HighScoreListText = nullptr;
+}
+
+void digger::GameManagerComponent::ClearHUD()
+{
+	for (auto* object : m_HUDObjects)
+	{
+		if (object)
+			m_Scene->Remove(*object);
+	}
+
+	m_HUDObjects.clear();
+
+	for (auto& icon : m_LifeIcons)
+		icon = nullptr;
+
+	m_ScoreText = nullptr;
 }
 
 void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
@@ -835,13 +1077,59 @@ void digger::GameManagerComponent::DamagePlayer()
 	if (m_DamageCooldown > 0.f)
 		return;
 
+	if (m_DeathSequenceActive)
+		return;
+
 	m_DamageCooldown = m_DamageCooldownDuration;
 
 	--m_Lives;
 	UpdateHUD();
 
-	dae::EventBus::GetInstance().GetSubject().Notify(
-		dae::Event{ dae::EventType::DamageRequested, m_Player, 1 });
+	auto* tr = m_Player->GetComponent<dae::TransformComponent>();
+	if (tr)
+	{
+		const auto& pos = tr->GetWorldPosition();
+		m_PlayerDeathWorldPosition = { pos.x, pos.y };
+	}
+	else
+	{
+		m_PlayerDeathWorldPosition = {};
+	}
+
+	BeginPlayerDeathSequence();
+}
+
+void digger::GameManagerComponent::BeginPlayerDeathSequence()
+{
+	m_DeathSequenceActive = true;
+	m_DeathSequenceTimer = 0.f;
+
+	RemoveAllFireballs();
+
+	auto& sound = dae::ServiceLocator::GetSoundSystem();
+
+	sound.Stop(GameSound::BackgroundMusic);
+	sound.Stop(GameSound::MoneyBagWiggle);
+	sound.Stop(GameSound::MoneyBagFalling);
+
+	sound.Play(GameSound::PlayerDeathMusic, 1.0f);
+
+	SpawnTombstone(m_PlayerDeathWorldPosition);
+
+	// Hide player while tombstone is visible
+	if (m_Player)
+	{
+		if (auto* tr = m_Player->GetComponent<dae::TransformComponent>())
+			tr->SetLocalPosition(-5000.f, -5000.f);
+	}
+}
+
+void digger::GameManagerComponent::FinishPlayerDeathSequence()
+{
+	m_DeathSequenceActive = false;
+	m_DeathSequenceTimer = 0.f;
+
+	RemoveTombstone();
 
 	if (m_Lives <= 0)
 	{
@@ -849,10 +1137,45 @@ void digger::GameManagerComponent::DamagePlayer()
 		return;
 	}
 
-	if (auto* movement = m_Player->GetComponent<GridMovementComponent>())
-		movement->SetGridPosition(m_PlayerSpawn);
+	if (m_Player)
+	{
+		if (auto* movement = m_Player->GetComponent<GridMovementComponent>())
+			movement->SetGridPosition(m_PlayerSpawn);
+	}
 
 	ResetEnemiesAfterPlayerDeath();
+
+	dae::ServiceLocator::GetSoundSystem().PlayLooping(
+		GameSound::BackgroundMusic,
+		0.5f);
+}
+
+void digger::GameManagerComponent::SpawnTombstone(const glm::vec2& position)
+{
+	RemoveTombstone();
+
+	auto tomb = std::make_unique<dae::GameObject>();
+	auto* tombPtr = tomb.get();
+
+	auto* tr = tomb->AddComponent<dae::TransformComponent>(tombPtr);
+	tr->SetLocalPosition(position.x, position.y);
+	tr->SetLocalScale(0.9f, 0.9f);
+
+	tomb->AddComponent<dae::RenderComponent>(
+		tombPtr,
+		dae::ResourceManager::GetInstance().LoadTexture("Tomb.png"));
+
+	m_Tombstone = tombPtr;
+	m_Scene->Add(std::move(tomb));
+}
+
+void digger::GameManagerComponent::RemoveTombstone()
+{
+	if (!m_Tombstone)
+		return;
+
+	m_Scene->Remove(*m_Tombstone);
+	m_Tombstone = nullptr;
 }
 
 void digger::GameManagerComponent::RegisterEnemy(EnemyComponent* enemy)
@@ -1151,6 +1474,10 @@ void digger::GameManagerComponent::ShootFireball()
 	auto fireball = std::make_unique<dae::GameObject>();
 	auto* fireballPtr = fireball.get();
 
+	dae::ServiceLocator::GetSoundSystem().PlayLooping(
+		GameSound::BulletTravel,
+		0.7f);
+
 	auto* fireTr = fireball->AddComponent<dae::TransformComponent>(fireballPtr);
 
 	
@@ -1200,6 +1527,9 @@ void digger::GameManagerComponent::RemoveFireball(dae::GameObject* fireball)
 {
 	if (!fireball)
 		return;
+
+	dae::ServiceLocator::GetSoundSystem().Stop(GameSound::BulletTravel);
+	dae::ServiceLocator::GetSoundSystem().Play(GameSound::BulletHit, 1.0f);
 
 	m_Fireballs.erase(
 		std::remove(m_Fireballs.begin(), m_Fireballs.end(), fireball),
@@ -1424,5 +1754,26 @@ digger::EnemyComponent* digger::GameManagerComponent::GetEnemyAtWorldPosition(
 	}
 
 	return nullptr;
+}
+
+void digger::GameManagerComponent::RemoveAllFireballs()
+{
+	auto& sound = dae::ServiceLocator::GetSoundSystem();
+	sound.Stop(GameSound::BulletTravel);
+
+	for (auto* fireball : m_Fireballs)
+	{
+		if (fireball)
+		{
+			m_LevelObjects.erase(
+				std::remove(m_LevelObjects.begin(), m_LevelObjects.end(), fireball),
+				m_LevelObjects.end());
+
+			m_Scene->Remove(*fireball);
+		}
+	}
+
+	m_Fireballs.clear();
+	
 }
 

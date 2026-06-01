@@ -8,8 +8,13 @@ namespace dae
 	{
 	public:
 		void RegisterSound(SoundId, const std::string&) override {}
+
 		void Play(SoundId, float) override {}
+		void PlayLooping(SoundId, float) override {}
+
+		void Stop(SoundId) override {}
 		void StopAll() override {}
+
 		void SetMuted(bool muted) override { m_Muted = muted; }
 		bool IsMuted() const override { return m_Muted; }
 

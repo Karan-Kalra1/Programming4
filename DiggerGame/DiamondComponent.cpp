@@ -5,6 +5,9 @@
 
 void digger::DiamondComponent::Update()
 {
+	if (m_Manager && m_Manager->IsGameplayFrozen())
+		return;
+
 	if (m_Collected || !m_Manager)
 		return;
 
