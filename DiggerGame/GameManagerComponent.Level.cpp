@@ -13,6 +13,7 @@
 #include "GameActorComponent.h"
 #include "EventBus.h"
 #include "GridPositionComponent.h"
+#include "EnemyManager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -75,9 +76,8 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 
 	if (m_Mode == GameMode::Versus)
 	{
-		m_EnemiesRemainingToSpawn = 0;
-		m_EnemiesAlive = 0;
-		m_EnemySpawnTimer = 0.f;
+		if (m_EnemyManager)
+			m_EnemyManager->Clear();
 	}
 
 	m_DirtTiles.clear();
@@ -202,7 +202,8 @@ void digger::GameManagerComponent::SpawnLevel(const LevelData& data)
 	}
 	*/
 
-	m_EnemySpawn = data.enemySpawn;
+	if (m_EnemyManager)
+		m_EnemyManager->SetSpawn(data.enemySpawn, data.hasEnemySpawn);
 }
 
 

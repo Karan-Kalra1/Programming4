@@ -11,6 +11,7 @@
 #include "EventBus.h"
 #include "ServiceLocator.h"
 #include "GameSounds.h"
+#include "DeathSequenceController.h"
 
 #include <algorithm>
 #include <limits>
@@ -76,6 +77,7 @@ void digger::GameManagerComponent::SpawnDiggerPlayer(
 			false,
 			0.f,
 			0.f,
+			false,
 			role
 	};
 
@@ -248,8 +250,11 @@ void digger::GameManagerComponent::DamagePlayer(int playerIndex)
 	if (m_ScreenState != GameScreenState::Playing)
 		return;
 
-	if (m_DeathSequenceActive)
+	if (m_DeathSequenceController &&
+		m_DeathSequenceController->IsActive())
+	{
 		return;
+	}
 
 	if (playerIndex < 0 ||
 		playerIndex >= static_cast<int>(m_Players.size()))
@@ -281,11 +286,11 @@ void digger::GameManagerComponent::DamagePlayer(int playerIndex)
 	if (auto* tr = player.object->GetComponent<dae::TransformComponent>())
 	{
 		const auto& pos = tr->GetWorldPosition();
-		m_PlayerDeathWorldPosition = { pos.x, pos.y };
+		m_LastDeathWorldPosition = { pos.x, pos.y };
 	}
 	else
 	{
-		m_PlayerDeathWorldPosition = {};
+		m_LastDeathWorldPosition = {};
 	}
 
 	m_DeathPlayerIndex = playerIndex;
@@ -367,5 +372,79 @@ void digger::GameManagerComponent::CheckVersusCollision()
 }
 
 
+const digger::PlayerRuntime* digger::GameManagerComponent::GetPlayerRuntime(
+	int playerIndex) const
+{
+	if (playerIndex < 0 ||
+		playerIndex >= static_cast<int>(m_Players.size()))
+	{
+		return nullptr;
+	}
 
+	return &m_Players[static_cast<size_t>(playerIndex)];
+}
 
+bool digger::GameManagerComponent::CanPlayerShootFireball(
+	int playerIndex) const
+{
+	if (!IsPlayerControllable(playerIndex))
+		return false;
+
+	const auto* player = GetPlayerRuntime(playerIndex);
+	if (!player)
+		return false;
+
+	if (!player->object)
+		return false;
+
+	if (!player->alive || player->dying)
+		return false;
+
+	if (player->role != PlayerRole::Digger)
+		return false;
+
+	if (player->fireballCooldown > 0.f)
+		return false;
+
+	if (player->fireballActive)
+		return false;
+
+	return true;
+}
+
+void digger::GameManagerComponent::StartPlayerFireballCooldown(
+	int playerIndex,
+	float cooldown)
+{
+	if (playerIndex < 0 ||
+		playerIndex >= static_cast<int>(m_Players.size()))
+	{
+		return;
+	}
+
+	auto& player = m_Players[static_cast<size_t>(playerIndex)];
+
+	player.fireballCooldown = cooldown;
+	player.fireballActive = true;
+}
+
+void digger::GameManagerComponent::SetPlayerFireballActive(
+	int playerIndex,
+	bool active)
+{
+	if (playerIndex < 0 ||
+		playerIndex >= static_cast<int>(m_Players.size()))
+	{
+		return;
+	}
+
+	m_Players[static_cast<size_t>(playerIndex)].fireballActive = active;
+}
+
+void digger::GameManagerComponent::ClearAllPlayerFireballStates()
+{
+	for (auto& player : m_Players)
+	{
+		player.fireballActive = false;
+	}
+}

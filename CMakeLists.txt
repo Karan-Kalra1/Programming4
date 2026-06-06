@@ -271,6 +271,13 @@ add_executable(${GAME_TARGET} ${GAME_TARGET_PARAM}
   DiggerGame/GameManagerComponent.Menu.cpp
   DiggerGame/GameManagerComponent.HighScore.cpp
   DiggerGame/GameManagerComponent.Death.cpp
+  DiggerGame/HudController.cpp
+  DiggerGame/MenuController.cpp
+  DiggerGame/HighScoreScreenController.cpp
+  DiggerGame/DeathSequenceController.cpp
+  DiggerGame/FireballManager.cpp
+  DiggerGame/MoneyBagManager.cpp
+  DiggerGame/EnemyManager.cpp
 )
 
 target_include_directories(${GAME_TARGET} PRIVATE

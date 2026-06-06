@@ -13,6 +13,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <memory>
 
 #include <glm/glm.hpp>
 
@@ -55,6 +56,7 @@ namespace digger
 
 		float damageCooldown{};
 		float fireballCooldown{};
+		bool fireballActive{};
 
 		PlayerRole role{ PlayerRole::Digger };
 	};
@@ -62,13 +64,22 @@ namespace digger
 
 	class MoneyBagComponent;
 	class EnemyComponent;
+	class HudController;
+	class MenuController;
+	class HighScoreScreenController;
+	class DeathSequenceController;
+	class MoneyBagManager;
+	class FireballManager;
+	class EnemyManager;
+	//class PlayerManager;
+	//class LevelSystem;
 	
 
 	class GameManagerComponent final : public dae::Component
 	{
 	public:
 		GameManagerComponent(dae::GameObject* owner, dae::Scene* scene);
-
+		~GameManagerComponent() override;
 		
 		//Hud
 		void CreateHUD();
@@ -80,7 +91,6 @@ namespace digger
 		void MoveHighScoreCursor(int delta);
 		void ConfirmHighScoreLetter();
 		void ShowHighScoreEntryScreen();
-		void RefreshHighScoreEntryText();
 		void SubmitHighScore();
 		void ShowHighScoreList();
 		void ConfirmHighScoreScreen();
@@ -96,8 +106,8 @@ namespace digger
 		void LoadLevel(int index);
 		void SkipLevel();
 		void ToggleMute();
-		bool IsGameplayFrozen() const { return m_DeathSequenceActive || m_ScreenState != GameScreenState::Playing; }
-
+		bool IsGameplayFrozen() const;
+		int GetScore() const { return m_Score; }
 
 		//Diamonds
 		void CollectDiamond(dae::GameObject* diamond);
@@ -106,10 +116,15 @@ namespace digger
 		//Level Information
 		bool CanEnemyMoveTo(const glm::ivec2& pos, bool canDig) const;	
 		bool CanPlayerMoveTo(const glm::ivec2& pos) const;
-		glm::vec2 GetMapOffset() { return m_MapOffset; }
-		int GetTileSize() { return m_TileSize; }
+		glm::vec2 GetMapOffset()const { return m_MapOffset; }
+		int GetTileSize()const { return m_TileSize; }
 		bool IsSolidWall(const glm::ivec2& pos) const;
-		bool HasDirtBelow(const glm::ivec2& pos) const;
+		bool HasDirtBelow(const glm::ivec2& pos) const;	
+		GameMode GetGameMode() const { return m_Mode; }
+		int GetCurrentLevel() const { return m_CurrentLevel; }
+		int GetLevelWidth() const { return m_LevelData.width; }
+		int GetLevelHeight() const { return m_LevelData.height; }
+
 
 		//Digging
 		void DigTile(const glm::ivec2& pos);
@@ -117,9 +132,10 @@ namespace digger
 		void DigAtWorldPosition(const glm::vec2& worldPos, const glm::ivec2& direction);
 		void DigAtPoint(const glm::vec2& point);
 
-		//Player location Data
+		//Player Data/Location
 		bool IsPlayerAtGridPosition(const glm::ivec2& pos) const;
 		dae::GameObject* GetPlayer(int index = 0) const;
+		const PlayerRuntime* GetPlayerRuntime(int playerIndex) const;
 		glm::ivec2 GetPlayerGridPosition(int index = 0) const;
 		glm::vec2 GetPlayerWorldPosition(int index = 0) const;
 		glm::ivec2 GetClosestAlivePlayerGridPosition(const glm::ivec2& fromGrid) const;	
@@ -132,6 +148,11 @@ namespace digger
 			const glm::vec2& worldPos,
 			float radius,
 			std::optional<PlayerRole> requiredRole) const;
+		const std::vector<PlayerRuntime>& GetPlayers() const
+		{
+			return m_Players;
+		}
+
 
 
 		//Player Collision/Life status
@@ -143,6 +164,7 @@ namespace digger
 		bool IsPlayerControllable(int playerIndex) const;
 
 		//Player Spawn/Count
+		std::vector<PlayerRuntime> m_Players{};
 		void SpawnDiggerPlayer(
 			int playerIndex,
 			const glm::ivec2& spawn,
@@ -158,6 +180,7 @@ namespace digger
 		//Enemy
 		void KillEnemy(EnemyComponent* enemy);
 		bool HasEnemyAt(const glm::ivec2& pos) const;
+		const std::vector<EnemyComponent*>& GetEnemies() const;
 		EnemyComponent* GetEnemyAtWorldPosition(const glm::vec2& worldPos, float radius) const;
 		std::vector<EnemyComponent*> GetEnemiesAtWorldPosition(
 			const glm::vec2& worldPos,
@@ -167,6 +190,13 @@ namespace digger
 		float GetFireballCooldown() const;
 		void ShootFireball(int playerIndex = 0);
 		void CheckFireballHit(dae::GameObject* fireball);
+		
+
+		bool CanPlayerShootFireball(int playerIndex) const;
+
+		void StartPlayerFireballCooldown(int playerIndex, float cooldown);
+		void SetPlayerFireballActive(int playerIndex, bool active);
+		void ClearAllPlayerFireballStates();
 		
 
 		//Moneybag
@@ -180,10 +210,24 @@ namespace digger
 
 
 		
+		void AddLevelObject(dae::GameObject* object);
+		void RemoveLevelObject(dae::GameObject* object);
 		
+		void AddScore(int amount);
 		
 
 	private:
+
+
+		std::unique_ptr<HudController> m_HudController{};
+		std::unique_ptr<MenuController> m_MenuController{};
+		std::unique_ptr<HighScoreScreenController> m_HighScoreScreenController{};
+		std::unique_ptr<DeathSequenceController> m_DeathSequenceController{};
+		std::unique_ptr<MoneyBagManager> m_MoneyBagManager{};
+		std::unique_ptr<FireballManager> m_FireballManager{};
+		std::unique_ptr<EnemyManager> m_EnemyManager{};
+		//std::unique_ptr<PlayerManager> m_PlayerManager{};
+		//std::unique_ptr<LevelSystem> m_LevelSystem{};
 
 		//Main Game
 		void ClearLevel();
@@ -209,13 +253,9 @@ namespace digger
 		void BeginPlayerDeathSequence();
 		void FinishPlayerDeathSequence();
 
-		void SpawnTombstone(const glm::vec2& position);
-		void RemoveTombstone();
 		
 		//Start Screen
 		void ShowModeSelectMenu();
-		void RefreshStartMenuText();
-		void RefreshModeSelectText();
 		void ClearScreenUI();
 		void QuitGame();
 
@@ -234,59 +274,25 @@ namespace digger
 		//std::vector<std::unique_ptr<dae::GameObject>> m_DirtVisuals{};
 		std::unordered_map<std::string, DirtTile> m_DirtTiles{};
 		std::vector<dae::GameObject*> m_Diamonds{};
-		std::vector<MoneyBagComponent*> m_MoneyBags{};
 		int m_CurrentLevel{};
 		int m_TileSize{ 64 };
 		LevelData m_LevelData{};
 		glm::vec2 m_MapOffset{ -32.f, -32.f };
 
 
-
-		//Start Screen
-		std::vector<dae::GameObject*> m_ScreenUIObjects{};
-		dae::TextComponent* m_StartMenuTitleText{};
-		dae::TextComponent* m_StartMenuPlayText{};
-		dae::TextComponent* m_StartMenuQuitText{};
-
-		dae::TextComponent* m_ModeMenuTitleText{};
-		dae::TextComponent* m_ModeSingleText{};
-		dae::TextComponent* m_ModeCoopText{};
-		dae::TextComponent* m_ModeVersusText{};
-
-		int m_StartMenuIndex{};
-		int m_ModeMenuIndex{};
+		
 
 
-		//HUD
-		std::vector<std::array<dae::GameObject*, 4>> m_PlayerLifeIcons{};
-		std::vector<dae::TextComponent*> m_PlayerLifeLabels{};
-		std::vector<dae::GameObject*> m_HUDObjects{};
-		std::array<dae::GameObject*, 4> m_LifeIcons{};
+		//HUD	
 		GameScreenState m_ScreenState{ GameScreenState::Playing };
 		int m_Score{};
 		
-
-		//HighScore
-		HighScoreManager m_HighScores{ "Data/Highscores.txt" };
-		dae::TextComponent* m_ScoreText{};
-		dae::TextComponent* m_HighScoreEntryText{};
-		dae::TextComponent* m_HighScoreListText{};
-		dae::TextComponent* m_HighScoreCursorText{};
-		std::string m_CurrentInitials{ "AAA" };
-		int m_InitialIndex{};
-
-
-		//Death Sequence
-		bool m_DeathSequenceActive{};
-		float m_DeathSequenceTimer{};
-		float m_DeathSequenceDuration{ 6.9f }; // Same length as Death music
-
-		dae::GameObject* m_Tombstone{};
-		glm::vec2 m_PlayerDeathWorldPosition{};
+		//Death Position
+		glm::vec2 m_LastDeathWorldPosition{};
 
 
 		//Player
-		std::vector<PlayerRuntime> m_Players{};
+		
 		int m_DeathPlayerIndex{ -1 };
 		std::array<int, 2> m_PlayerLives{ 4, 4 };
 		std::array<bool, 2> m_PlayerAlive{ true, true };
@@ -295,17 +301,7 @@ namespace digger
 		float m_DigRadius{ 20.f };
 
 
-		//Enemy
-		std::vector<EnemyComponent*> m_Enemies{};
-		glm::ivec2 m_EnemySpawn{};
-		int m_EnemiesRemainingToSpawn{};
-		int m_EnemiesAlive{};
-		int m_TotalEnemiesThisStage{};
-		float m_EnemySpawnTimer{};
-		float m_EnemySpawnInterval{ 4.0f };
-
-		//Fireball
-		std::vector<dae::GameObject*> m_Fireballs{};
+		
 				
 	};
 }

@@ -392,3 +392,8 @@ void digger::MoneyBagComponent::ReleaseDraggedTargets()
 	m_DraggedPlayerIndex = -1;
 	m_DraggedEnemies.clear();
 }
+
+dae::GameObject* digger::MoneyBagComponent::GetGameObject() const
+{
+	return GetOwner();
+}

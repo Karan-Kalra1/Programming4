@@ -35,6 +35,7 @@ namespace digger
 		bool TryPush(const glm::ivec2& direction);
 		bool IsBrokenGold() const { return m_State == MoneyBagState::BrokenGold; }
 		void SetGridPosition(const glm::ivec2& pos);
+		dae::GameObject* GetGameObject() const;
 
 	private:
 		
