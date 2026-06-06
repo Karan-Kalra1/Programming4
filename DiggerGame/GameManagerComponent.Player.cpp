@@ -1,450 +1,182 @@
-
 #include "GameManagerComponent.h"
 
-#include "Scene.h"
-#include "GameObject.h"
-#include "ResourceManager.h"
-#include "TransformComponent.h"
-#include "RenderComponent.h"
-#include "GridMovementComponent.h"
-#include "GameActorComponent.h"
-#include "EventBus.h"
-#include "ServiceLocator.h"
-#include "GameSounds.h"
-#include "DeathSequenceController.h"
+#include "PlayerManager.h"
 
-#include <algorithm>
-#include <limits>
-#include <memory>
-
-//Player Spawning/Dying/Despawning
-
-void digger::GameManagerComponent::SpawnDiggerPlayer(
-	int playerIndex,
-	const glm::ivec2& spawn,
-	const std::string& textureFile,
-	PlayerRole role)
+const std::vector<digger::PlayerRuntime>&
+digger::GameManagerComponent::GetPlayers() const
 {
-	if (playerIndex < 0 || playerIndex >= 2)
-		return;
+	static const std::vector<PlayerRuntime> empty{};
 
-	if (!m_PlayerAlive[static_cast<size_t>(playerIndex)])
-		return;
+	if (!m_PlayerManager)
+		return empty;
 
-	auto player = std::make_unique<dae::GameObject>();
-	auto* playerPtr = player.get();
-
-	player->AddComponent<dae::TransformComponent>(playerPtr);
-
-	auto* movement = player->AddComponent<GridMovementComponent>(
-		playerPtr,
-		this,
-		m_TileSize,
-		160.f,
-		m_MapOffset);
-
-	movement->SetGridPosition(spawn);
-
-	// Versus enemy should not dig dirt.
-	if (role == PlayerRole::VersusEnemy)
-	{
-		movement->SetCanDigDirt(false);
-		movement->SetCanEnterDirt(false);
-	}
-
-	player->AddComponent<dae::RenderComponent>(
-		playerPtr,
-		dae::ResourceManager::GetInstance().LoadTexture(textureFile));
-
-	auto* actor = player->AddComponent<dae::GameActorComponent>(
-		playerPtr,
-		4,
-		0,
-		playerIndex + 1);
-
-	dae::EventBus::GetInstance().GetSubject().AddObserver(actor);
-
-	if (playerIndex >= static_cast<int>(m_Players.size()))
-		m_Players.resize(static_cast<size_t>(playerIndex + 1));
-
-	m_Players[static_cast<size_t>(playerIndex)] =
-		PlayerRuntime{
-			playerPtr,
-			actor,
-			spawn,
-			m_PlayerLives[static_cast<size_t>(playerIndex)],
-			m_PlayerAlive[static_cast<size_t>(playerIndex)],
-			false,
-			0.f,
-			0.f,
-			false,
-			role
-	};
-
-	m_LevelObjects.push_back(playerPtr);
-	m_Scene->Add(std::move(player));
+	return m_PlayerManager->GetPlayers();
 }
 
-
-void digger::GameManagerComponent::RemovePlayerObservers()
+const digger::PlayerRuntime*
+digger::GameManagerComponent::GetPlayerRuntime(int playerIndex) const
 {
-	for (auto& player : m_Players)
-	{
-		if (player.actor)
-		{
-			dae::EventBus::GetInstance().GetSubject().RemoveObserver(player.actor);
-			player.actor = nullptr;
-		}
-	}
-}
-
-
-
-
-
-//Player Position Getters
-
-
-dae::GameObject* digger::GameManagerComponent::GetPlayer(int index) const
-{
-	if (index < 0 || index >= static_cast<int>(m_Players.size()))
+	if (!m_PlayerManager)
 		return nullptr;
 
-	return m_Players[static_cast<size_t>(index)].object;
+	return m_PlayerManager->GetPlayerRuntime(playerIndex);
 }
 
-glm::ivec2 digger::GameManagerComponent::GetPlayerGridPosition(int index) const
+dae::GameObject* digger::GameManagerComponent::GetPlayer(
+	int playerIndex) const
 {
-	auto* player = GetPlayer(index);
-	if (!player)
+	if (!m_PlayerManager)
+		return nullptr;
+
+	return m_PlayerManager->GetPlayer(playerIndex);
+}
+
+glm::ivec2 digger::GameManagerComponent::GetPlayerGridPosition(
+	int playerIndex) const
+{
+	if (!m_PlayerManager)
 		return {};
 
-	if (auto* movement = player->GetComponent<GridMovementComponent>())
-		return movement->GetGridPosition();
-
-	return {};
+	return m_PlayerManager->GetPlayerGridPosition(playerIndex);
 }
 
-
-bool digger::GameManagerComponent::IsPlayerAtGridPosition(const glm::ivec2& pos) const
+glm::vec2 digger::GameManagerComponent::GetPlayerWorldPosition(
+	int playerIndex) const
 {
-	return GetPlayerGridPosition() == pos;
+	if (!m_PlayerManager)
+		return {};
+
+	return m_PlayerManager->GetPlayerWorldPosition(playerIndex);
 }
 
 glm::ivec2 digger::GameManagerComponent::GetClosestAlivePlayerGridPosition(
 	const glm::ivec2& fromGrid) const
 {
-	float bestDistanceSq = std::numeric_limits<float>::max();
-	int bestIndex = -1;
+	if (!m_PlayerManager)
+		return fromGrid;
 
-	for (int i = 0; i < static_cast<int>(m_Players.size()); ++i)
-	{
-		const auto& player = m_Players[static_cast<size_t>(i)];
-
-		if (!player.alive || player.dying || !player.object)
-			continue;
-
-		const glm::ivec2 playerGrid = GetPlayerGridPosition(i);
-		const glm::ivec2 diff = playerGrid - fromGrid;
-
-		const float distSq =
-			static_cast<float>(diff.x * diff.x + diff.y * diff.y);
-
-		if (distSq < bestDistanceSq)
-		{
-			bestDistanceSq = distSq;
-			bestIndex = i;
-		}
-	}
-
-	if (bestIndex == -1)
-		return {};
-
-	return GetPlayerGridPosition(bestIndex);
-}
-
-int digger::GameManagerComponent::GetPlayerIndexAtWorldPosition(
-	const glm::vec2& worldPos,
-	float radius,
-	std::optional<PlayerRole> requiredRole) const
-{
-	const float radiusSq = radius * radius;
-
-	for (int i = 0; i < static_cast<int>(m_Players.size()); ++i)
-	{
-		const auto& player = m_Players[static_cast<size_t>(i)];
-
-		if (!player.alive || player.dying || !player.object)
-			continue;
-
-		if (requiredRole.has_value() && player.role != requiredRole.value())
-			continue;
-
-		const glm::vec2 playerPos = GetPlayerWorldPosition(i);
-		const glm::vec2 diff = playerPos - worldPos;
-
-		if ((diff.x * diff.x + diff.y * diff.y) <= radiusSq)
-			return i;
-	}
-
-	return -1;
+	return m_PlayerManager->GetClosestAlivePlayerGridPosition(fromGrid);
 }
 
 int digger::GameManagerComponent::GetPlayerIndexAtWorldPosition(
 	const glm::vec2& worldPos,
 	float radius) const
 {
-	return GetPlayerIndexAtWorldPosition(worldPos, radius, std::nullopt);
+	if (!m_PlayerManager)
+		return -1;
+
+	return m_PlayerManager->GetPlayerIndexAtWorldPosition(worldPos, radius);
 }
 
 int digger::GameManagerComponent::GetDiggerPlayerIndexAtWorldPosition(
 	const glm::vec2& worldPos,
 	float radius) const
 {
-	return GetPlayerIndexAtWorldPosition(worldPos, radius, PlayerRole::Digger);
-}
+	if (!m_PlayerManager)
+		return -1;
 
+	return m_PlayerManager->GetDiggerPlayerIndexAtWorldPosition(worldPos, radius);
+}
 
 int digger::GameManagerComponent::GetPlayerIndexAtGridPosition(
 	const glm::ivec2& pos) const
 {
-	for (int i = 0; i < static_cast<int>(m_Players.size()); ++i)
-	{
-		if (!IsPlayerAlive(i))
-			continue;
+	if (!m_PlayerManager)
+		return -1;
 
-		if (GetPlayerGridPosition(i) == pos)
-			return i;
-	}
-
-	return -1;
+	return m_PlayerManager->GetPlayerIndexAtGridPosition(pos);
 }
-
-glm::vec2 digger::GameManagerComponent::GetPlayerWorldPosition(int index) const
-{
-	auto* player = GetPlayer(index);
-	if (!player)
-		return {};
-
-	if (auto* movement = player->GetComponent<GridMovementComponent>())
-		return movement->GetWorldPosition() + m_PlayerCenterOffset;
-
-	if (auto* tr = player->GetComponent<dae::TransformComponent>())
-	{
-		const auto& pos = tr->GetWorldPosition();
-		return { pos.x + m_PlayerCenterOffset.x, pos.y + m_PlayerCenterOffset.y };
-	}
-
-	return {};
-}
-
-
-
-
-
-//Player Damage/Collisions/Health
-
-
-void digger::GameManagerComponent::DamagePlayer(int playerIndex)
-{
-	if (m_ScreenState != GameScreenState::Playing)
-		return;
-
-	if (m_DeathSequenceController &&
-		m_DeathSequenceController->IsActive())
-	{
-		return;
-	}
-
-	if (playerIndex < 0 ||
-		playerIndex >= static_cast<int>(m_Players.size()))
-	{
-		return;
-	}
-
-	auto& player = m_Players[static_cast<size_t>(playerIndex)];
-
-	if (!player.alive || player.dying || !player.object)
-		return;
-
-	if (player.damageCooldown > 0.f)
-		return;
-
-	player.damageCooldown = m_DamageCooldownDuration;
-
-	//mark dying
-	// This prevents a second enemy/moneybag collision from starting another death sequence
-	player.dying = true;
-
-	--player.lives;
-	m_PlayerLives[static_cast<size_t>(playerIndex)] = player.lives;
-	UpdateHUD();
-
-	dae::EventBus::GetInstance().GetSubject().Notify(
-		dae::Event{ dae::EventType::DamageRequested, player.object, 1 });
-
-	if (auto* tr = player.object->GetComponent<dae::TransformComponent>())
-	{
-		const auto& pos = tr->GetWorldPosition();
-		m_LastDeathWorldPosition = { pos.x, pos.y };
-	}
-	else
-	{
-		m_LastDeathWorldPosition = {};
-	}
-
-	m_DeathPlayerIndex = playerIndex;
-
-	BeginPlayerDeathSequence();
-}
-
-
-bool digger::GameManagerComponent::AreAllPlayersDead() const
-{
-	if (m_Players.empty())
-		return true;
-
-	for (const auto& player : m_Players)
-	{
-		if (player.alive)
-			return false;
-	}
-
-	return true;
-}
-
-bool digger::GameManagerComponent::IsPlayerControllable(int playerIndex) const
-{
-	if (IsGameplayFrozen())
-		return false;
-
-	return IsPlayerAlive(playerIndex);
-}
-
 
 bool digger::GameManagerComponent::IsPlayerAlive(int playerIndex) const
 {
-	if (playerIndex < 0 ||
-		playerIndex >= static_cast<int>(m_Players.size()))
-	{
+	if (!m_PlayerManager)
 		return false;
-	}
 
-	const auto& player = m_Players[static_cast<size_t>(playerIndex)];
-
-	return player.alive && !player.dying && player.object;
+	return m_PlayerManager->IsPlayerAlive(playerIndex);
 }
 
-void digger::GameManagerComponent::CheckVersusCollision()
-{
-	if (m_Mode != GameMode::Versus)
-		return;
-
-	if (m_Players.size() < 2)
-		return;
-
-	const auto& p1 = m_Players[0];
-	const auto& p2 = m_Players[1];
-
-	if (!p1.alive || p1.dying || !p1.object)
-		return;
-
-	if (!p2.alive || p2.dying || !p2.object)
-		return;
-
-	if (p1.role != PlayerRole::Digger)
-		return;
-
-	if (p2.role != PlayerRole::VersusEnemy)
-		return;
-
-	const glm::vec2 p1Pos = GetPlayerWorldPosition(0);
-	const glm::vec2 p2Pos = GetPlayerWorldPosition(1);
-
-	const glm::vec2 diff = p1Pos - p2Pos;
-
-	const float radius = GetCollisionRadius();
-
-	if ((diff.x * diff.x + diff.y * diff.y) <= radius * radius)
-	{
-		DamagePlayer(0);
-	}
-}
-
-
-const digger::PlayerRuntime* digger::GameManagerComponent::GetPlayerRuntime(
+bool digger::GameManagerComponent::IsPlayerControllable(
 	int playerIndex) const
 {
-	if (playerIndex < 0 ||
-		playerIndex >= static_cast<int>(m_Players.size()))
-	{
-		return nullptr;
-	}
+	if (!m_PlayerManager)
+		return false;
 
-	return &m_Players[static_cast<size_t>(playerIndex)];
+	return m_PlayerManager->IsPlayerControllable(*this, playerIndex);
 }
 
 bool digger::GameManagerComponent::CanPlayerShootFireball(
 	int playerIndex) const
 {
-	if (!IsPlayerControllable(playerIndex))
+	if (!m_PlayerManager)
 		return false;
 
-	const auto* player = GetPlayerRuntime(playerIndex);
-	if (!player)
-		return false;
-
-	if (!player->object)
-		return false;
-
-	if (!player->alive || player->dying)
-		return false;
-
-	if (player->role != PlayerRole::Digger)
-		return false;
-
-	if (player->fireballCooldown > 0.f)
-		return false;
-
-	if (player->fireballActive)
-		return false;
-
-	return true;
+	return m_PlayerManager->CanPlayerShootFireball(*this, playerIndex);
 }
 
 void digger::GameManagerComponent::StartPlayerFireballCooldown(
 	int playerIndex,
 	float cooldown)
 {
-	if (playerIndex < 0 ||
-		playerIndex >= static_cast<int>(m_Players.size()))
-	{
-		return;
-	}
-
-	auto& player = m_Players[static_cast<size_t>(playerIndex)];
-
-	player.fireballCooldown = cooldown;
-	player.fireballActive = true;
+	if (m_PlayerManager)
+		m_PlayerManager->StartPlayerFireballCooldown(playerIndex, cooldown);
 }
 
 void digger::GameManagerComponent::SetPlayerFireballActive(
 	int playerIndex,
 	bool active)
 {
-	if (playerIndex < 0 ||
-		playerIndex >= static_cast<int>(m_Players.size()))
-	{
-		return;
-	}
-
-	m_Players[static_cast<size_t>(playerIndex)].fireballActive = active;
+	if (m_PlayerManager)
+		m_PlayerManager->SetPlayerFireballActive(playerIndex, active);
 }
 
 void digger::GameManagerComponent::ClearAllPlayerFireballStates()
 {
-	for (auto& player : m_Players)
+	if (m_PlayerManager)
+		m_PlayerManager->ClearAllPlayerFireballStates();
+}
+
+void digger::GameManagerComponent::DamagePlayer(int playerIndex)
+{
+	if (m_ScreenState != GameScreenState::Playing)
+		return;
+
+	if (IsGameplayFrozen())
+		return;
+
+	if (m_PlayerManager)
+		m_PlayerManager->DamagePlayer(*this, playerIndex);
+}
+
+
+bool digger::GameManagerComponent::AreAllPlayersDead() const
+{
+	if (!m_PlayerManager)
+		return true;
+
+	return m_PlayerManager->AreAllPlayersDead();
+}
+
+void digger::GameManagerComponent::CheckVersusCollision()
+{
+	if (m_PlayerManager)
+		m_PlayerManager->CheckVersusCollision(*this);
+}
+
+int digger::GameManagerComponent::GetPlayerCount() const
+{
+	int count = 0;
+
+	for (const auto& player : GetPlayers())
 	{
-		player.fireballActive = false;
+		if (player.object)
+			++count;
 	}
+
+	return count;
+}
+
+bool digger::GameManagerComponent::IsPlayerAtGridPosition(
+	const glm::ivec2& pos) const
+{
+	return GetPlayerIndexAtGridPosition(pos) != -1;
 }

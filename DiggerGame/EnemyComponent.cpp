@@ -195,8 +195,13 @@ bool digger::EnemyComponent::CanMoveTo(const glm::ivec2& pos, bool canDig) const
 
 void digger::EnemyComponent::DigTile(const glm::ivec2& pos)
 {
-	if (m_Manager)
-		m_Manager->DigTile(pos);
+	if (!m_Manager)
+		return;
+
+	if (m_Manager->HasDiamondAt(pos))
+		return;
+
+	m_Manager->DigTile(pos);
 }
 
 bool digger::EnemyComponent::IsOnPlayer() const

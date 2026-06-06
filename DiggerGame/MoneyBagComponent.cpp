@@ -390,10 +390,71 @@ void digger::MoneyBagComponent::KillDraggedTargets()
 void digger::MoneyBagComponent::ReleaseDraggedTargets()
 {
 	m_DraggedPlayerIndex = -1;
+
+	for (auto* enemy : m_DraggedEnemies)
+	{
+		if (!enemy || enemy->IsDead())
+			continue;
+
+		const glm::ivec2 releaseTile =
+			FindReleaseTileForEnemy(enemy);
+
+		// If there is nowhere safe to release, kill it to avoid permanent stuck state.
+		if (releaseTile == m_GridPosition)
+		{
+			enemy->Kill();
+			continue;
+		}
+
+		enemy->SetGridPosition(releaseTile);
+
+		enemy->SetCrushedByBag(false);
+	}
+
 	m_DraggedEnemies.clear();
 }
 
 dae::GameObject* digger::MoneyBagComponent::GetGameObject() const
 {
 	return GetOwner();
+}
+
+
+glm::ivec2 digger::MoneyBagComponent::FindReleaseTileForEnemy(
+	EnemyComponent* enemy) const
+{
+	if (!m_Manager || !enemy)
+		return m_GridPosition;
+
+	static constexpr glm::ivec2 directions[]
+	{
+		{ -1, 0 },
+		{ 1, 0 },
+		{ 0, -1 },
+		{ 0, 1 }
+	};
+
+	for (const auto& dir : directions)
+	{
+		const glm::ivec2 candidate = m_GridPosition + dir;
+
+		if (m_Manager->HasMoneyBagAt(candidate))
+			continue;
+
+		if (m_Manager->HasEnemyAt(candidate))
+			continue;
+
+		if (m_Manager->GetPlayerIndexAtGridPosition(candidate) != -1)
+			continue;
+
+		// Use false here so the enemy is released only into an already-open tile.
+		if (!m_Manager->CanEnemyMoveTo(candidate, false))
+			continue;
+
+		return candidate;
+	}
+
+	// If there is no safe tile, return current bag tile.
+	
+	return m_GridPosition;
 }

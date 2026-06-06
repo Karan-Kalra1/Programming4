@@ -47,8 +47,378 @@
 namespace fs = std::filesystem;
 
 
+namespace
+{
+	void BindGlobalCommands(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager)
+	{
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_F1,
+			dae::KeyState::Down,
+			std::make_unique<digger::SkipLevelCommand>(manager));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_F2,
+			dae::KeyState::Down,
+			std::make_unique<digger::ToggleMuteCommand>(manager));
+	}
+
+	void BindPlayerKeyboard(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager,
+		int playerIndex)
+	{
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_W,
+			dae::KeyState::Down,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 0, -1 },
+				true));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_W,
+			dae::KeyState::Up,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 0, -1 },
+				false));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_S,
+			dae::KeyState::Down,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 0, 1 },
+				true));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_S,
+			dae::KeyState::Up,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 0, 1 },
+				false));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_A,
+			dae::KeyState::Down,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ -1, 0 },
+				true));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_A,
+			dae::KeyState::Up,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ -1, 0 },
+				false));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_D,
+			dae::KeyState::Down,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 1, 0 },
+				true));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_D,
+			dae::KeyState::Up,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 1, 0 },
+				false));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_SPACE,
+			dae::KeyState::Down,
+			std::make_unique<digger::ShootFireballCommand>(
+				manager,
+				playerIndex));
+	}
+
+	void BindPlayerController(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager,
+		int controllerIndex,
+		int playerIndex)
+	{
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadUp,
+			dae::KeyState::Down,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 0, -1 },
+				true));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadUp,
+			dae::KeyState::Up,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 0, -1 },
+				false));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadDown,
+			dae::KeyState::Down,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 0, 1 },
+				true));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadDown,
+			dae::KeyState::Up,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 0, 1 },
+				false));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadLeft,
+			dae::KeyState::Down,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ -1, 0 },
+				true));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadLeft,
+			dae::KeyState::Up,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ -1, 0 },
+				false));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadRight,
+			dae::KeyState::Down,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 1, 0 },
+				true));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadRight,
+			dae::KeyState::Up,
+			std::make_unique<digger::GridMoveCommand>(
+				manager,
+				playerIndex,
+				glm::ivec2{ 1, 0 },
+				false));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::ButtonA,
+			dae::KeyState::Down,
+			std::make_unique<digger::ShootFireballCommand>(
+				manager,
+				playerIndex));
+	}
+
+	void BindMenuKeyboard(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager)
+	{
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_UP,
+			dae::KeyState::Down,
+			std::make_unique<digger::MenuNavigateCommand>(
+				manager,
+				-1));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_DOWN,
+			dae::KeyState::Down,
+			std::make_unique<digger::MenuNavigateCommand>(
+				manager,
+				1));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_RETURN,
+			dae::KeyState::Down,
+			std::make_unique<digger::MenuConfirmCommand>(
+				manager));
+	}
+
+	void BindMenuController(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager,
+		int controllerIndex)
+	{
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadUp,
+			dae::KeyState::Down,
+			std::make_unique<digger::MenuNavigateCommand>(
+				manager,
+				-1));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadDown,
+			dae::KeyState::Down,
+			std::make_unique<digger::MenuNavigateCommand>(
+				manager,
+				1));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::ButtonA,
+			dae::KeyState::Down,
+			std::make_unique<digger::MenuConfirmCommand>(
+				manager));
+	}
+
+	void BindHighScoreKeyboard(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager)
+	{
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_UP,
+			dae::KeyState::Down,
+			std::make_unique<digger::HighScoreLetterCommand>(
+				manager,
+				1));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_DOWN,
+			dae::KeyState::Down,
+			std::make_unique<digger::HighScoreLetterCommand>(
+				manager,
+				-1));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_LEFT,
+			dae::KeyState::Down,
+			std::make_unique<digger::HighScoreCursorCommand>(
+				manager,
+				-1));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_RIGHT,
+			dae::KeyState::Down,
+			std::make_unique<digger::HighScoreCursorCommand>(
+				manager,
+				1));
+
+		input.BindKeyboardCommand(
+			SDL_SCANCODE_RETURN,
+			dae::KeyState::Down,
+			std::make_unique<digger::HighScoreConfirmCommand>(
+				manager));
+	}
+
+	void BindHighScoreController(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager,
+		int controllerIndex)
+	{
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadUp,
+			dae::KeyState::Down,
+			std::make_unique<digger::HighScoreLetterCommand>(
+				manager,
+				1));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadDown,
+			dae::KeyState::Down,
+			std::make_unique<digger::HighScoreLetterCommand>(
+				manager,
+				-1));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadLeft,
+			dae::KeyState::Down,
+			std::make_unique<digger::HighScoreCursorCommand>(
+				manager,
+				-1));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::DPadRight,
+			dae::KeyState::Down,
+			std::make_unique<digger::HighScoreCursorCommand>(
+				manager,
+				1));
+
+		input.BindControllerCommand(
+			controllerIndex,
+			dae::ControllerButton::ButtonA,
+			dae::KeyState::Down,
+			std::make_unique<digger::HighScoreConfirmCommand>(
+				manager));
+	}
+}
 
 
+namespace
+{
+	void BindGlobalCommands(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager);
+
+	void BindPlayerKeyboard(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager,
+		int playerIndex);
+
+	void BindPlayerController(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager,
+		int controllerIndex,
+		int playerIndex);
+
+	void BindMenuKeyboard(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager);
+
+	void BindMenuController(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager,
+		int controllerIndex);
+
+	void BindHighScoreKeyboard(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager);
+
+	void BindHighScoreController(
+		dae::InputManager& input,
+		digger::GameManagerComponent* manager,
+		int controllerIndex);
+}
 
 static void load()
 {
@@ -58,120 +428,31 @@ static void load()
 	auto* managerGo = managerObject.get();
 
 	auto* manager =
-		managerObject->AddComponent<digger::GameManagerComponent>(managerGo, &scene);
-
-	manager->ShowStartMenu();
+		managerObject->AddComponent<digger::GameManagerComponent>(
+			managerGo,
+			&scene);
 
 	auto& input = dae::InputManager::GetInstance();
 
-	input.BindKeyboardCommand(SDL_SCANCODE_F1, dae::KeyState::Down,
-		std::make_unique<digger::SkipLevelCommand>(manager));
+	BindGlobalCommands(input, manager);
 
-	input.BindKeyboardCommand(SDL_SCANCODE_F2, dae::KeyState::Down,
-		std::make_unique<digger::ToggleMuteCommand>(manager));
+	// Player 1
+	BindPlayerKeyboard(input, manager, 0);
+	BindPlayerController(input, manager, 0, 0);
 
-	input.BindKeyboardCommand(SDL_SCANCODE_W, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager,0, glm::ivec2{ 0, -1 },true));
-	input.BindKeyboardCommand(SDL_SCANCODE_W, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager,0, glm::ivec2{ 0, -1 },false));
+	// Player 2
+	BindPlayerController(input, manager, 1, 1);
 
-	input.BindKeyboardCommand(SDL_SCANCODE_S, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, 0, glm::ivec2{ 0, 1 },true));
-	input.BindKeyboardCommand(SDL_SCANCODE_S, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, 0, glm::ivec2{ 0, 1 }, false));
+	// Menus and high score entry
+	BindMenuKeyboard(input, manager);
+	BindMenuController(input, manager, 0);
+	BindMenuController(input, manager, 1);
 
-	input.BindKeyboardCommand(SDL_SCANCODE_A, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, 0, glm::ivec2{ -1, 0 },true));
-	input.BindKeyboardCommand(SDL_SCANCODE_A, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, 0, glm::ivec2{ -1, 0 }, false));
+	BindHighScoreKeyboard(input, manager);
+	BindHighScoreController(input, manager, 0);
+	BindHighScoreController(input, manager, 1);
 
-	input.BindKeyboardCommand(SDL_SCANCODE_D, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>( manager, 0, glm::ivec2{ 1, 0 },true));
-	input.BindKeyboardCommand(SDL_SCANCODE_D, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, 0, glm::ivec2{ 1, 0 }, false));
-
-
-
-	input.BindControllerCommand(0, dae::ControllerButton::DPadUp, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 0, -1 }, true));
-	input.BindControllerCommand(0, dae::ControllerButton::DPadUp, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 0, -1 }, false));
-
-	input.BindControllerCommand(0, dae::ControllerButton::DPadDown, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 0, 1 }, true));
-	input.BindControllerCommand(0, dae::ControllerButton::DPadDown, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 0, 1 }, false));
-
-	input.BindControllerCommand(0, dae::ControllerButton::DPadLeft, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ -1, 0 }, true));
-	input.BindControllerCommand(0, dae::ControllerButton::DPadLeft, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ -1, 0 }, false));
-
-	input.BindControllerCommand(0, dae::ControllerButton::DPadRight, dae::KeyState::Down,
-		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 1, 0 }, true));
-	input.BindControllerCommand(0, dae::ControllerButton::DPadRight, dae::KeyState::Up,
-		std::make_unique<digger::GridMoveCommand>(manager, 1, glm::ivec2{ 1, 0 }, false));
-
-
-	// P1 keyboard
-	input.BindKeyboardCommand(SDL_SCANCODE_SPACE, dae::KeyState::Down,
-		std::make_unique<digger::ShootFireballCommand>(manager, 0));
-
-	// P2 controller
-	input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,
-		std::make_unique<digger::ShootFireballCommand>(manager, 1));
-
-
-	input.BindKeyboardCommand(SDL_SCANCODE_UP, dae::KeyState::Down,
-		std::make_unique<digger::HighScoreLetterCommand>(manager, 1));
-
-	input.BindKeyboardCommand(SDL_SCANCODE_DOWN, dae::KeyState::Down,
-		std::make_unique<digger::HighScoreLetterCommand>(manager, -1));
-
-	input.BindKeyboardCommand(SDL_SCANCODE_LEFT, dae::KeyState::Down,
-		std::make_unique<digger::HighScoreCursorCommand>(manager, -1));
-
-	input.BindKeyboardCommand(SDL_SCANCODE_RIGHT, dae::KeyState::Down,
-		std::make_unique<digger::HighScoreCursorCommand>(manager, 1));
-
-	input.BindKeyboardCommand(SDL_SCANCODE_RETURN, dae::KeyState::Down,
-		std::make_unique<digger::HighScoreConfirmCommand>(manager));
-
-
-	input.BindControllerCommand(0, dae::ControllerButton::DPadUp, dae::KeyState::Down,
-		std::make_unique<digger::HighScoreLetterCommand>(manager, 1));
-
-	input.BindControllerCommand(0, dae::ControllerButton::DPadDown, dae::KeyState::Down,
-		std::make_unique<digger::HighScoreLetterCommand>(manager, -1));
-
-	input.BindControllerCommand(0, dae::ControllerButton::DPadLeft, dae::KeyState::Down,
-		std::make_unique<digger::HighScoreCursorCommand>(manager, -1));
-
-	input.BindControllerCommand(0, dae::ControllerButton::DPadRight, dae::KeyState::Down,
-		std::make_unique<digger::HighScoreCursorCommand>(manager, 1));
-
-	input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,
-		std::make_unique<digger::HighScoreConfirmCommand>(manager));
-
-
-	input.BindKeyboardCommand(SDL_SCANCODE_UP, dae::KeyState::Down,
-		std::make_unique<digger::MenuNavigateCommand>(manager, -1));
-
-	input.BindKeyboardCommand(SDL_SCANCODE_DOWN, dae::KeyState::Down,
-		std::make_unique<digger::MenuNavigateCommand>(manager, 1));
-
-	input.BindKeyboardCommand(SDL_SCANCODE_RETURN, dae::KeyState::Down,
-		std::make_unique<digger::MenuConfirmCommand>(manager));
-
-
-	input.BindControllerCommand(0, dae::ControllerButton::DPadUp, dae::KeyState::Down,
-		std::make_unique<digger::MenuNavigateCommand>(manager, -1));
-
-	input.BindControllerCommand(0, dae::ControllerButton::DPadDown, dae::KeyState::Down,
-		std::make_unique<digger::MenuNavigateCommand>(manager, 1));
-
-	input.BindControllerCommand(0, dae::ControllerButton::ButtonA, dae::KeyState::Down,
-		std::make_unique<digger::MenuConfirmCommand>(manager));
+	manager->ShowStartMenu();
 
 	scene.Add(std::move(managerObject));
 }

@@ -13,8 +13,8 @@
 #include "MoneyBagManager.h"
 #include "FireballManager.h"
 #include "EnemyManager.h"
-//#include "PlayerManager.h"
-//#include "LevelSystem.h"
+#include "PlayerManager.h"
+#include "LevelSystem.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -42,8 +42,8 @@ digger::GameManagerComponent::GameManagerComponent(dae::GameObject* owner, dae::
 	m_MoneyBagManager = std::make_unique<MoneyBagManager>(scene);
 	m_FireballManager = std::make_unique<FireballManager>(scene);
 	m_EnemyManager = std::make_unique<EnemyManager>(scene);
-	//m_PlayerManager = std::make_unique<PlayerManager>();
-	//m_LevelSystem = std::make_unique<LevelSystem>();
+	m_PlayerManager = std::make_unique<PlayerManager>(scene);
+	m_LevelSystem = std::make_unique<LevelSystem>(scene);
 
 	//RegisterSounds();
 }
@@ -59,10 +59,10 @@ void digger::GameManagerComponent::StartGame(GameMode mode)
 
 	m_Mode = mode;
 	m_Score = 0;
-	//m_Lives = 4;
 	m_CurrentLevel = 0;
-	m_PlayerLives = { 4, 4 };
-	m_PlayerAlive = { true, true };
+
+	if (m_PlayerManager)
+		m_PlayerManager->ResetForNewGame(mode);
 
 	m_ScreenState = GameScreenState::Playing;
 
@@ -92,33 +92,63 @@ void digger::GameManagerComponent::StartGame(GameMode mode)
 
 void digger::GameManagerComponent::LoadLevel(int index)
 {
-	m_CurrentLevel = index;
-
-	if (m_CurrentLevel > 2)
-	{
-		std::cout << "Game finished!\n";
-		return;
-	}
+	m_IsLoadingLevel = true;
+	m_LevelLoadFreezeTimer = m_LevelLoadFreezeDuration;
 
 	ClearLevel();
 
-	const auto path =
-		std::filesystem::path{ "Data/Levels/Level" + std::to_string(m_CurrentLevel + 1) + ".txt" };
+	m_CurrentLevel = index;
 
-	m_LevelData = LevelLoader::Load(path);
-	SpawnLevel(m_LevelData);
+	const auto levelPath =
+		"Data/Levels/Level" + std::to_string(index + 1) + ".txt";
+
+	const LevelData data = LevelLoader::Load(levelPath);
+
+	if (m_LevelSystem)
+	{
+		m_LevelSystem->SetLevelData(data);
+		m_LevelSystem->SpawnStaticObjects(*this);
+	}
+
+	if (m_PlayerManager)
+		m_PlayerManager->SpawnPlayersForLevel(*this, data);
 
 	if (m_EnemyManager)
+	{
+		m_EnemyManager->SetSpawn(data.enemySpawn, data.hasEnemySpawn);
 		m_EnemyManager->BeginStage(*this);
+	}
+
+	m_ShouldLoadNextLevel = false;
+
 }
 
 void digger::GameManagerComponent::SkipLevel()
 {
+	if (m_CurrentLevel >= 2)
+	{
+		m_CurrentLevel = -1;
+	}
+
 	LoadLevel(m_CurrentLevel + 1);
 }
 
 void digger::GameManagerComponent::Update()
 {
+
+	if (m_IsLoadingLevel)
+	{
+		m_LevelLoadFreezeTimer -= dae::MiniginTime::GetDeltaTime();
+
+		if (m_LevelLoadFreezeTimer <= 0.f)
+		{
+			m_IsLoadingLevel = false;
+			m_LevelLoadFreezeTimer = 0.f;
+		}
+
+		return;
+	}
+
 
 	if (m_ScreenState == GameScreenState::StartMenu ||
 		m_ScreenState == GameScreenState::ModeSelect ||
@@ -128,14 +158,8 @@ void digger::GameManagerComponent::Update()
 		return;
 	}
 
-	for (auto& player : m_Players)
-	{
-		if (player.damageCooldown > 0.f)
-			player.damageCooldown -= dae::MiniginTime::GetDeltaTime();
-
-		if (player.fireballCooldown > 0.f)
-			player.fireballCooldown -= dae::MiniginTime::GetDeltaTime();
-	}
+	m_PlayerManager->UpdateCooldowns(
+		dae::MiniginTime::GetDeltaTime());
 
 	if (m_DeathSequenceController &&
 		m_DeathSequenceController->IsActive())
@@ -185,15 +209,19 @@ void digger::GameManagerComponent::ToggleMute()
 
 bool digger::GameManagerComponent::IsGameplayFrozen() const
 {
-	return m_ScreenState != GameScreenState::Playing ||
-		(m_DeathSequenceController && m_DeathSequenceController->IsActive());
+	return m_IsLoadingLevel ||
+		m_ScreenState != GameScreenState::Playing ||
+		(m_DeathSequenceController &&
+			m_DeathSequenceController->IsActive());
 }
 
 void digger::GameManagerComponent::ClearLevel()
 {
-	RemovePlayerObservers();
-
+	
 	RemoveAllFireballs();
+
+	if (m_DeathSequenceController)
+		m_DeathSequenceController->Clear();
 
 	for (auto* object : m_LevelObjects)
 	{
@@ -202,73 +230,29 @@ void digger::GameManagerComponent::ClearLevel()
 	}
 
 	m_LevelObjects.clear();
-	m_Diamonds.clear();
-	m_DirtTiles.clear();
 
-	if (m_EnemyManager)
-		m_EnemyManager->Clear();
+	if (m_LevelSystem)
+		m_LevelSystem->Clear();
 
 	if (m_MoneyBagManager)
 		m_MoneyBagManager->Clear();
 
-	m_Players.clear();
+	if (m_EnemyManager)
+		m_EnemyManager->Clear();
 
-	//m_Player = nullptr;
-
-	m_DeathSequenceController->Clear();
+	if (m_PlayerManager)
+		m_PlayerManager->ClearLevel();
 
 	dae::ServiceLocator::GetSoundSystem().Stop(GameSound::MoneyBagWiggle);
 	dae::ServiceLocator::GetSoundSystem().Stop(GameSound::MoneyBagFalling);
 }
 
 
-//Removing and Adding LevelData
-void digger::GameManagerComponent::AddLevelObject(dae::GameObject* object)
-{
-	if (!object)
-		return;
-
-	m_LevelObjects.push_back(object);
-}
-
-void digger::GameManagerComponent::RemoveLevelObject(dae::GameObject* object)
-{
-	m_LevelObjects.erase(
-		std::remove(m_LevelObjects.begin(), m_LevelObjects.end(), object),
-		m_LevelObjects.end());
-}
-
 //Adding Score
 void digger::GameManagerComponent::AddScore(int amount)
 {
 	m_Score += amount;
 	UpdateHUD();
-}
-
-
-//Diamond Collection
-
-void digger::GameManagerComponent::CollectDiamond(dae::GameObject* diamond)
-{
-	if (!diamond)
-		return;
-
-	AddScore(100);
-
-	dae::ServiceLocator::GetSoundSystem().Play(DiamondPickUp, 1.0f);
-
-	m_Scene->Remove(*diamond);
-
-	m_Diamonds.erase(
-		std::remove(m_Diamonds.begin(), m_Diamonds.end(), diamond),
-		m_Diamonds.end());
-
-	m_LevelObjects.erase(
-		std::remove(m_LevelObjects.begin(), m_LevelObjects.end(), diamond),
-		m_LevelObjects.end());
-
-	if (m_Diamonds.empty())
-		m_ShouldLoadNextLevel = true;
 }
 
 

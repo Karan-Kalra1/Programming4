@@ -36,6 +36,7 @@ namespace digger
 		bool IsBrokenGold() const { return m_State == MoneyBagState::BrokenGold; }
 		void SetGridPosition(const glm::ivec2& pos);
 		dae::GameObject* GetGameObject() const;
+		
 
 	private:
 		
@@ -51,6 +52,7 @@ namespace digger
 		void DragTargetsDown();
 		void KillDraggedTargets();
 		void ReleaseDraggedTargets();
+		glm::ivec2 FindReleaseTileForEnemy(EnemyComponent* enemy) const;
 
 		glm::vec2 GridToWorld(const glm::ivec2& grid) const;
 

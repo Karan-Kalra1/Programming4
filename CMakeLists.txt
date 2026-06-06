@@ -278,6 +278,8 @@ add_executable(${GAME_TARGET} ${GAME_TARGET_PARAM}
   DiggerGame/FireballManager.cpp
   DiggerGame/MoneyBagManager.cpp
   DiggerGame/EnemyManager.cpp
+  DiggerGame/PlayerManager.cpp
+  DiggerGame/LevelSystem.cpp
 )
 
 target_include_directories(${GAME_TARGET} PRIVATE
