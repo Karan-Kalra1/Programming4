@@ -1,88 +1,160 @@
-﻿# Minigin
+﻿# Digger
 
-Minigin is a very small project using [SDL3](https://www.libsdl.org/) and [glm](https://github.com/g-truc/glm) for 2D c++ game projects. It is in no way a game engine, only a barebone start project where everything sdl related has been set up. It contains glm for vector math, to aleviate the need to write custom vector and matrix classes.
+This project is a C++ remake of **Digger**, built on top of my engine.
+The main focus was applying several engine design patterns discussed in class and using them in this game.
 
-[![Build Status](https://github.com/avadae/minigin/actions/workflows/cmake.yml/badge.svg)](https://github.com/avadae/cmake/actions)
-[![Build Status](https://github.com/avadae/minigin/actions/workflows/emscripten.yml/badge.svg)](https://github.com/avadae/emscripten/actions)
-[![GitHub Release](https://img.shields.io/github/v/release/avadae/minigin?logo=github&sort=semver)](https://github.com/avadae/minigin/releases/latest)
 
-# Goal
+## GitHub Link
+https://github.com/Karan-Kalra1/Programming4
 
-Minigin can/may be used as a start project for the exam assignment in the course [Programming 4](https://youtu.be/j96Oh6vzhmg) at DAE. In that assignment students need to recreate a popular 80's arcade game with a game engine they need to program themselves. During the course we discuss several game programming patterns, using the book '[Game Programming Patterns](https://gameprogrammingpatterns.com/)' by [Robert Nystrom](https://github.com/munificent) as reading material. 
 
-# Disclaimer
+## Design Choices
 
-Minigin is, despite perhaps the suggestion in its name, **not** a game engine. It is just a very simple SDL3 ready project with some of the scaffolding in place to get started. None of the patterns discussed in the course are used yet (except singleton which use we challenge during the course). It is up to the students to implement their own vision for their engine, apply patterns as they see fit, create their game as efficient as possible.
+### Command Pattern for Input
 
-# Use
+Input is handled using the **Command pattern**.
 
-Get the source from this project, or since students need to have their work on github too, they can use this repository as a template. Hit the "Use this template" button on the top right corner of the github page of this project.
+Examples of commands are:
 
-## Windows version
+* `GridMoveCommand`
+* `ShootFireballCommand`
+* `MenuNavigateCommand`
+* `MenuConfirmCommand`
+* `HighScoreLetterCommand`
 
-Either
-- Open the root folder in Visual Studio 2026; this will be recognized as a cmake project.
-  
-Or
-- Install CMake 
-- Install CMake and CMake Tools extensions in Visual Code
-- Open the root folder in Visual Code,  this will be recognized as a cmake project.
 
-Or
-- Use whatever editor you like :)
+Player 1 supports both keyboard and controller input.
+Player 2 uses controller input only.
+Menus and high score entry can be controlled with both keyboard and controller.
 
-## Emscripten (web) version
+---
 
-### On windows
+### Event Bus
 
-For installing all of the needed tools on Windows I recommend using [Chocolatey](https://chocolatey.org/). You can then run the following in a terminal to install what is needed:
+The engine uses an **event bus** for event-based communication between systems.
+Instead of tightly coupling objects together, gameplay systems can send events and interested listeners can react to them.
 
-    choco install -y cmake
-    choco install -y emscripten
-    choco install -y ninja
-    choco install -y python
+This is useful for things like score changes, player events, UI updates, and other gameplay notifications.
+It keeps systems more independent because the sender does not need to know exactly who receives the event.
 
-In a terminal, navigate to the root folder. Run this: 
+---
 
-    mkdir build_web
-    cd build_web
-    emcmake cmake ..
-    emmake ninja
+### Service Locator for Audio
 
-To be able to see the webpage you can start a python webserver in the build_web folder
+Audio is accessed through a **Service Locator**.
+Gameplay code does not directly depend on a concrete sound system. Instead, it asks the service locator for the active sound system.
 
-    python -m http.server
+This project also contains a **logging sound system**, which wraps the real sound system and logs sound calls. 
 
-Then browse to http://localhost:8000 and you're good to go.
+---
 
-### On OSX
+### Threaded Audio System
 
-On Mac you can use homebrew
+The audio system uses a separate worker thread for processing sound requests.
+Gameplay code does not play sounds directly on the main game thread. Instead, it sends sound commands such as play, stop, stop all, or play looping to the audio system.
 
-    brew install cmake
-    brew install emscripten
-    brew install python
+The audio system stores these requests in a queue.
+The audio thread then processes the queue and calls the underlying SDL audio functions.
 
-In a terminal on OSX, navigate to the root folder. Run this: 
+A mutex and condition variable are used to safely communicate between the main thread and the audio thread.
+When a new sound request is pushed into the queue, the audio thread is notified and wakes up to process it.
 
-    mkdir build_web
-    cd build_web
-    emcmake cmake .. -DCMAKE_OSX_ARCHITECTURES=""
-    emmake make
+---
 
-To be able to see the webpage you can start a python webserver in the build_web folder
+### State Pattern
 
-    python3 -m http.server
+The **State pattern** is used for enemy behavior.
 
-Then browse to http://localhost:8000 and you're good to go.
+Enemies can switch between different states:
 
-## Github Actions
+* `NobbinState`
+* `HobbinState`
 
-This project is build with github actions.
-- The CMake workflow builds the project in Debug and Release for Windows and serves as a check that the project builds on that platform.
-- The Emscripten workflow generates a web version of the project and publishes it as a [github page](https://avadae.github.io/minigin/). 
-  - The url of that page will be `https://<username>.github.io/<repository>/`
-- You can embed this page with 
+Nobbins move through existing tunnels, while Hobbins can dig through normal dirt.
+Keeping this behavior in separate state classes avoids one large enemy update function full of conditionals.
 
-```<iframe style="position: absolute; top: 0px; left: 0px; width: 1024px; height: 576px;" src="https://<username>.github.io/<repository>/" loading="lazy"></iframe>```
+---
 
+### Level Loading from Text Files
+
+Levels are loaded from external text files.
+Each character in the file represents a tile or object type.
+
+For example:
+
+* dirt tiles
+* solid boundary tiles
+* empty tunnels
+* player spawn positions
+* enemy spawner
+* diamond positions
+* money bag positions
+
+
+---
+
+### Digging System
+
+Digging is implemented as a tile-based system with smaller visual dirt pieces inside each tile.
+
+The level stores dirt logically as grid tiles. 
+
+Diggable dirt tiles are also split into smaller visual pieces.
+When the player moves through dirt, the game checks the player's world position and removes dirt pieces within a digging radius.
+
+This makes digging look more gradual instead of instantly removing an entire tile.
+
+Once enough pieces of a dirt tile have been removed, the tile is marked as open.
+At that point, enemies can move through it as a tunnel.
+
+### Game Manager as a Facade
+
+Originally, most gameplay logic was inside `GameManagerComponent`.
+As the project grew, this became hard to maintain, so the logic was split into smaller systems.
+
+The current structure uses:
+
+* `LevelSystem`
+* `PlayerManager`
+* `EnemyManager`
+* `MoneyBagManager`
+* `FireballManager`
+* `HudController`
+* `MenuController`
+* `HighScoreScreenController`
+* `DeathSequenceController`
+
+`GameManagerComponent` now mainly acts as a facade.
+Other gameplay objects still call the game manager, but the actual work is delegated to the correct systems.
+
+This keeps the public interface simple while making the internal code easier to organize.
+
+---
+
+### Scene and Object Lifetime
+
+Gameplay objects are owned by the scene and removed through the scene when they are no longer needed.
+
+For level transitions, the game keeps track of spawned level objects so they can all be cleared before loading the next level.
+Old enemies are also marked for removal before being destroyed, which prevents them from updating for one extra frame and affecting the newly loaded level.
+
+---
+
+## Controls
+
+### Player 1
+
+* Keyboard: WASD to move
+* Keyboard: Space to shoot
+* Controller 0: D-pad to move
+* Controller 0: A to shoot
+
+### Player 2
+
+* Controller 1: D-pad to move
+* Controller 1: A to shoot
+
+### Menu and High Score Input
+
+* Keyboard: Arrow keys and Enter
+* Controller: D-pad and A
