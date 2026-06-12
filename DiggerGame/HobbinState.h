@@ -13,7 +13,7 @@ namespace digger
 	private:
 		float m_MoveTimer{};
 		float m_StateTimer{};
-		float m_MoveDelay{ 0.28f };
+		//float m_MoveDelay{ 0.28f };
 		float m_HobbinDuration{ 2.0f };
 	};
 }
