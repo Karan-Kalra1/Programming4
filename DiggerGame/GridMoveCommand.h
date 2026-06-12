@@ -11,9 +11,11 @@ namespace digger
 	public:
 		GridMoveCommand(GameManagerComponent* manager, int playerIndex, const glm::ivec2& direction, bool pressed)
 			: m_Manager(manager)
-			, m_PlayerIndex(playerIndex)
-			, m_Direction(direction)
+			,m_Direction(direction)
 			, m_Pressed(pressed)
+			,m_PlayerIndex(playerIndex)
+			
+			
 		{
 		}
 

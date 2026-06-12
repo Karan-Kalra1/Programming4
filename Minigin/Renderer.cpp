@@ -4,7 +4,7 @@
 #include "Renderer.h"
 #include "SceneManager.h"
 #include "Texture2D.h"
-#include "CacheTrashWindow.h"
+//#include "CacheTrashWindow.h"
 
 #include <imgui.h>
 #include <backends/imgui_impl_sdl3.h>

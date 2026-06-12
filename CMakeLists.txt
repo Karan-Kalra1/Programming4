@@ -184,8 +184,8 @@ add_library(MiniginEngine STATIC
   Minigin/TransformComponent.cpp
   Minigin/RenderComponent.cpp
   Minigin/TextComponent.cpp
-  Minigin/CircularMovementComponent.cpp
-  Minigin/CacheTrashWindow.cpp
+  #Minigin/CircularMovementComponent.cpp
+  #Minigin/CacheTrashWindow.cpp
   Minigin/Controller.cpp
 
  
@@ -239,7 +239,7 @@ add_executable(${GAME_TARGET} ${GAME_TARGET_PARAM}
   DiggerGame/AddScoreCommand.cpp
   DiggerGame/LivesDisplayComponent.cpp
   DiggerGame/ScoreDisplayComponent.cpp
-  DiggerGame/SteamAchievementComponent.cpp
+  #DiggerGame/SteamAchievementComponent.cpp
   DiggerGame/GameManagerComponent.cpp
   DiggerGame/LevelLoader.cpp
   DiggerGame/GridPositionComponent.cpp
