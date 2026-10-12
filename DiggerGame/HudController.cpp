@@ -128,12 +128,12 @@ void digger::HudController::Create(GameManagerComponent& game)
 		if (player.role == PlayerRole::VersusEnemy)
 		{
 			lifeTexture =
-				dae::ResourceManager::GetInstance().LoadTexture("Nobbin.png");
+				dae::ResourceManager::GetInstance().LoadTexture("VNOB1.png");
 		}
 		else
 		{
 			lifeTexture =
-				dae::ResourceManager::GetInstance().LoadTexture("Digger.png");
+				dae::ResourceManager::GetInstance().LoadTexture("VRLIFE.png");
 		}
 
 		std::array<dae::GameObject*, 4> icons{};

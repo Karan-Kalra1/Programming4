@@ -9,6 +9,7 @@
 #include "ResourceManager.h"
 #include "TransformComponent.h"
 #include "RenderComponent.h"
+#include "AnimationComponent.h"
 
 #include <algorithm>
 #include <memory>
@@ -97,11 +98,39 @@ void digger::EnemyManager::SpawnEnemy(GameManagerComponent& game)
 
 	enemy->AddComponent<dae::TransformComponent>(enemyPtr);
 
-
 	enemy->AddComponent<dae::RenderComponent>(
 		enemyPtr,
-		dae::ResourceManager::GetInstance().LoadTexture("Nobbin.png"));
+		dae::ResourceManager::GetInstance().LoadTexture("VNOB1.png"));
 
+	
+	auto* animation =
+		enemy->AddComponent<dae::AnimationComponent>(enemyPtr);
+
+	
+	animation->AddAnimation(
+		"NobbinWalk",
+		{
+			"VNOB1.png",
+			"VNOB2.png",
+			"VNOB3.png"
+		},
+		0.14f,
+		true
+	);
+
+	
+	animation->AddAnimation(
+		"HobbinWalk",
+		{
+			"VRHOB1.png",
+			"VRHOB2.png",
+			"VRHOB3.png",
+		},
+		0.14f,
+		true
+	);
+
+	
 	auto* enemyComp =
 		enemy->AddComponent<EnemyComponent>(enemyPtr, &game);
 

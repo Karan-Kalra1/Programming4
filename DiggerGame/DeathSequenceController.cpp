@@ -7,6 +7,7 @@
 #include "RenderComponent.h"
 #include "ServiceLocator.h"
 #include "GameSounds.h"
+#include "AnimationComponent.h"
 
 #include <memory>
 
@@ -73,11 +74,32 @@ void digger::DeathSequenceController::SpawnTombstone(const glm::vec2& position)
 
 	auto* tr = tomb->AddComponent<dae::TransformComponent>(tombPtr);
 	tr->SetLocalPosition(position.x, position.y);
+
+	
 	
 
 	tomb->AddComponent<dae::RenderComponent>(
 		tombPtr,
-		dae::ResourceManager::GetInstance().LoadTexture("Tomb.png"));
+		dae::ResourceManager::GetInstance().LoadTexture("VGRAVE1.png"));
+
+	auto* animation =
+		tomb->AddComponent<dae::AnimationComponent>(tombPtr);
+
+
+	animation->AddAnimation(
+		"Death",
+		{
+			"VGRAVE1.png",
+			"VGRAVE2.png",
+			"VGRAVE3.png",
+			"VGRAVE4.png",
+			"VGRAVE5.png",
+
+		},
+		0.25f,
+		false);
+
+	animation->Play("Death");
 
 	m_Tombstone = tombPtr;
 	m_Scene->Add(std::move(tomb));

@@ -239,6 +239,7 @@ add_executable(${GAME_TARGET} ${GAME_TARGET_PARAM}
   DiggerGame/AddScoreCommand.cpp
   DiggerGame/LivesDisplayComponent.cpp
   DiggerGame/ScoreDisplayComponent.cpp
+  DiggerGame/AnimationComponent.cpp
   #DiggerGame/SteamAchievementComponent.cpp
   DiggerGame/GameManagerComponent.cpp
   DiggerGame/LevelLoader.cpp

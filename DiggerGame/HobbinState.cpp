@@ -4,22 +4,22 @@
 #include "GameManagerComponent.h"
 #include "MiniginTime.h"
 #include "GameObject.h"
-#include "TransformComponent.h"
-#include "RenderComponent.h"
-#include "ResourceManager.h"
+#include "AnimationComponent.h"
 
 void digger::HobbinState::OnEnter(EnemyComponent& enemy)
 {
 	m_MoveTimer = 0.f;
 	m_StateTimer = 0.f;
 
-	auto* render = enemy.GetGameObject()->GetComponent<dae::RenderComponent>();
-	if (render)
+	auto* animation =
+		enemy.GetGameObject()->GetComponent<dae::AnimationComponent>();
+
+	if (animation)
 	{
-		render->SetTexture(
-			dae::ResourceManager::GetInstance().LoadTexture("Hobbin.png"));
+		animation->Play("HobbinWalk", true);
 	}
 }
+
 
 void digger::HobbinState::Update(EnemyComponent& enemy)
 {
@@ -42,12 +42,7 @@ void digger::HobbinState::Update(EnemyComponent& enemy)
 	enemy.MoveTowardPlayer(true);
 }
 
-void digger::HobbinState::OnExit(EnemyComponent& enemy)
+void digger::HobbinState::OnExit(EnemyComponent&)
 {
-	auto* render = enemy.GetGameObject()->GetComponent<dae::RenderComponent>();
-	if (render)
-	{
-		render->SetTexture(
-			dae::ResourceManager::GetInstance().LoadTexture("Nobbin.png"));
-	}
+	
 }

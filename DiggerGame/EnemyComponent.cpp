@@ -347,11 +347,21 @@ dae::GameObject* digger::EnemyComponent::GetGameObject() const
 
 void digger::EnemyComponent::RegisterEnemyCollision()
 {
+
+	// Do not restart the Hobbin state if we are already a Hobbin
+	if (dynamic_cast<HobbinState*>(m_State.get()) != nullptr)
+	{
+		m_CrossCounter = 0;
+		return;
+	}
+		
+
 	++m_CrossCounter;
 
 	if (m_CrossCounter >= 6)
 	{
 		m_CrossCounter = 0;
+
 		ChangeState(std::make_unique<HobbinState>());
 	}
 }

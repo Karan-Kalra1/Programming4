@@ -95,6 +95,7 @@ namespace digger
 		bool IsSolidWall(const glm::ivec2& pos) const;
 		bool HasDirtBelow(const glm::ivec2& pos) const;
 		bool HasDiamondAt(const glm::ivec2& pos) const;
+		void RequestNextLevel();
 
 		glm::vec2 GetMapOffset() const;
 		int GetTileSize() const;
@@ -207,6 +208,7 @@ namespace digger
 		float m_LevelLoadFreezeTimer{};
 		float m_LevelLoadFreezeDuration{ 0.05f };
 		std::vector<dae::GameObject*> m_LevelObjects{};
+
 
 		//Enemy
 		void SpawnEnemy();

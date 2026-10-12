@@ -10,6 +10,7 @@
 #include "GridMovementComponent.h"
 #include "ServiceLocator.h"
 #include "GameSounds.h"
+#include "AnimationComponent.h"
 
 
 #include <glm/geometric.hpp>
@@ -108,6 +109,7 @@ void digger::MoneyBagComponent::SetState(MoneyBagState state)
 
 	m_State = state;
 
+
 	if (m_State == MoneyBagState::WaitingToFall)
 	{
 		sound.PlayLooping(GameSound::MoneyBagWiggle, 0.8f);
@@ -123,6 +125,31 @@ void digger::MoneyBagComponent::SetState(MoneyBagState state)
 		sound.Stop(GameSound::MoneyBagWiggle);
 		sound.Stop(GameSound::MoneyBagFalling);
 	}
+
+
+	if (auto* animation =
+		GetOwner()->GetComponent<dae::AnimationComponent>())
+	{
+		switch (m_State)
+		{
+		case MoneyBagState::Stable:
+			animation->Play("Stable");
+			break;
+
+		case MoneyBagState::WaitingToFall:
+			animation->Play("Wiggle");
+			break;
+
+		case MoneyBagState::Falling:
+			animation->Play("Falling");
+			break;
+
+		case MoneyBagState::BrokenGold:
+			animation->Play("GoldDrop", true);
+			break;
+		}
+	}
+
 }
 
 void digger::MoneyBagComponent::UpdateStable()
@@ -267,12 +294,12 @@ void digger::MoneyBagComponent::BreakIntoGold()
 {
 	SetState(MoneyBagState::BrokenGold);
 
-	auto* render = GetOwner()->GetComponent<dae::RenderComponent>();
-	if (render)
-	{
-		render->SetTexture(
-			dae::ResourceManager::GetInstance().LoadTexture("Gold.png"));
-	}
+	//auto* render = GetOwner()->GetComponent<dae::RenderComponent>();
+	//if (render)
+	//{
+	//	render->SetTexture(
+			//dae::ResourceManager::GetInstance().LoadTexture("Gold.png"));
+	//}
 }
 
 void digger::MoneyBagComponent::UpdateVisual()

@@ -11,6 +11,7 @@
 #include "MoneyBagComponent.h"
 #include "ServiceLocator.h"
 #include "GameSounds.h"
+#include "AnimationComponent.h"
 
 #include <algorithm>
 #include <cmath>
@@ -117,7 +118,7 @@ void digger::LevelSystem::SpawnDiamonds(GameManagerComponent& game)
 
 		diamond->AddComponent<dae::RenderComponent>(
 			diamondPtr,
-			dae::ResourceManager::GetInstance().LoadTexture("Diamond.png"));
+			dae::ResourceManager::GetInstance().LoadTexture("VEMERALD.png"));
 
 		diamond->AddComponent<digger::DiamondComponent>(
 			diamondPtr,
@@ -148,7 +149,52 @@ void digger::LevelSystem::SpawnMoneyBags(GameManagerComponent& game)
 
 		bag->AddComponent<dae::RenderComponent>(
 			bagPtr,
-			dae::ResourceManager::GetInstance().LoadTexture("Money.PNG"));
+			dae::ResourceManager::GetInstance().LoadTexture("VSBAG.png"));
+
+		auto* animation =
+			bag->AddComponent<dae::AnimationComponent>(bagPtr);
+
+
+		animation->AddAnimation(
+			"Stable",
+			{
+				"VSBAG.png"		
+			},
+			0.1f,
+			true);
+
+
+		animation->AddAnimation(
+			"Wiggle",
+			{
+				"VRBAG.png",
+				"VSBAG.png",
+				"VLBAG.png",
+				"VSBAG.png"
+			},
+			0.12f,
+			true);
+
+
+		animation->AddAnimation(
+			"Falling",
+			{ "FBAG.png" },
+			0.1f,
+			true);
+
+
+		animation->AddAnimation(
+			"GoldDrop",
+			{
+				"VGOLD1.png",
+				"VGOLD2.png",
+				"VGOLD3.png"
+				
+			},
+			0.1f,
+			false);
+
+		animation->Play("Stable");
 
 		auto* moneyBag =
 			bag->AddComponent<MoneyBagComponent>(
@@ -471,4 +517,7 @@ void digger::LevelSystem::CollectDiamond(
 
 	if (m_Scene)
 		m_Scene->Remove(*diamond);
+
+	if (m_Diamonds.empty())
+		game.RequestNextLevel();
 }

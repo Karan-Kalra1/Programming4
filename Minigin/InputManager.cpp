@@ -6,8 +6,9 @@
 
 dae::InputManager::InputManager()
 {
-	// One controller for now
+	// two controllers added (submission only had 1 controller so 2 controllers won't work)
 	m_Controllers.emplace_back(std::make_unique<Controller>(0));
+	m_Controllers.emplace_back(std::make_unique<Controller>(1));
 
 	m_pCurrentKeyboardState = SDL_GetKeyboardState(nullptr);
 	m_PreviousKeyboardState.resize(SDL_SCANCODE_COUNT, false);

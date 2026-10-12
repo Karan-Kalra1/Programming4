@@ -35,6 +35,7 @@ namespace digger
 		bool CanOccupyPosition(const glm::vec2& worldPos) const;
 		bool IsSameAxis(const glm::ivec2& a, const glm::ivec2& b) const;
 		bool IsDirectionHeld(const glm::ivec2& direction) const;
+		void UpdateAnimation();
 
 		glm::ivec2 WorldPointToGrid(const glm::vec2& worldPoint) const;
 		glm::ivec2 GetFrontGridPosition(const glm::vec2& worldPosition, const glm::ivec2& direction) const;
@@ -55,6 +56,7 @@ namespace digger
 
 		int m_TileSize{};
 		float m_Speed{};
+		float m_DigAnimationGraceTimer = 0.0f;
 		glm::vec2 m_Offset{};
 
 		glm::vec2 m_WorldPosition{};

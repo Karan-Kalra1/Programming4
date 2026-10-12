@@ -4,7 +4,7 @@
 #include "GameObject.h"
 #include "TransformComponent.h"
 #include "MiniginTime.h"
-#include "MoneyBagComponent.h"
+#include "AnimationComponent.h"
 
 #include <cmath>
 
@@ -88,6 +88,54 @@ void digger::GridMovementComponent::PressDirection(const glm::ivec2& direction)
 	m_AlignToNearestGrid = false;
 }
 
+
+
+void digger::GridMovementComponent::UpdateAnimation()
+{
+	auto* animation =
+		GetOwner()->GetComponent<dae::AnimationComponent>();
+
+	if (!animation)
+		return;
+
+	if (m_CurrentDirection == glm::ivec2{})
+	{
+		m_DigAnimationGraceTimer = 0.0f;
+		animation->Play("Idle");
+		return;
+	}
+
+	const glm::ivec2 frontGrid =
+		GetFrontGridPosition(m_WorldPosition, m_CurrentDirection);
+
+	const bool isDigging =
+		m_CanDigDirt &&
+		m_Manager &&
+		m_Manager->IsDirt(frontGrid);
+
+	if (isDigging)
+	{
+		m_DigAnimationGraceTimer = 0.0f;
+		animation->Play("Dig");
+		return;
+	}
+
+	if (animation->GetCurrentAnimation() == "Dig")
+	{
+		m_DigAnimationGraceTimer +=
+			dae::MiniginTime::GetDeltaTime();
+
+		if (m_DigAnimationGraceTimer < 0.08f)
+			return;
+	}
+
+	
+	m_DigAnimationGraceTimer = 0.0f;
+	animation->Play("Walk");
+}
+
+
+
 void digger::GridMovementComponent::ReleaseDirection(const glm::ivec2& direction)
 {
 	if (direction.x > 0) m_HeldRight = false;
@@ -111,6 +159,10 @@ void digger::GridMovementComponent::Update()
 {
 	if (m_Manager && m_Manager->IsGameplayFrozen())
 		return;
+
+
+	UpdateAnimation();
+
 
 	const float dt = dae::MiniginTime::GetDeltaTime();
 

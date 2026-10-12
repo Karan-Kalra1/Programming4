@@ -144,3 +144,8 @@ void digger::GameManagerComponent::RemoveLevelObject(
 		std::remove(m_LevelObjects.begin(), m_LevelObjects.end(), object),
 		m_LevelObjects.end());
 }
+
+void digger::GameManagerComponent::RequestNextLevel()
+{
+	m_ShouldLoadNextLevel = true;
+}

@@ -12,6 +12,7 @@
 #include "EventBus.h"
 #include "ServiceLocator.h"
 #include "GameSounds.h"
+#include "AnimationComponent.h"
 
 #include <algorithm>
 #include <limits>
@@ -75,7 +76,7 @@ void digger::PlayerManager::SpawnPlayersForLevel(
 			game,
 			0,
 			data.playerSpawn,
-			"Digger.png",
+			"VRDIG1.png",
 			PlayerRole::Digger);
 	}
 
@@ -92,7 +93,7 @@ void digger::PlayerManager::SpawnPlayersForLevel(
 				game,
 				1,
 				p2Spawn,
-				"Digger.png",
+				"VRDIG1.png",
 				PlayerRole::Digger);
 		}
 	}
@@ -109,7 +110,7 @@ void digger::PlayerManager::SpawnPlayersForLevel(
 				game,
 				1,
 				p2Spawn,
-				"Nobbin.png",
+				"VNOB1.png",
 				PlayerRole::VersusEnemy);
 		}
 	}
@@ -153,16 +154,87 @@ void digger::PlayerManager::SpawnDiggerPlayer(
 	}
 
 
+
+	
 	player->AddComponent<dae::RenderComponent>(
 		playerPtr,
 		dae::ResourceManager::GetInstance().LoadTexture(textureFile));
 
+	
+	auto* animation =
+		player->AddComponent<dae::AnimationComponent>(playerPtr);
+
+	if (role == PlayerRole::Digger)
+	{
+		
+		animation->AddAnimation(
+			"Idle",
+			{
+				"VRDIG1.png"
+			},
+			0.12f,
+			true
+		);
+
+		
+		animation->AddAnimation(
+			"Walk",
+			{
+				"VRDIG1.png",
+				"VRDIG2.png",
+				"VRDIG3.png"
+			},
+			0.12f,
+			true
+		);
+
+		
+		animation->AddAnimation(
+			"Dig",
+			{
+				"VRDIG1X.png",
+				"VRDIG2X.png",
+				"VRDIG3X.png"
+			},
+			0.12f,
+			true
+		);
+	}
+	else if (role == PlayerRole::VersusEnemy)
+	{
+		
+		animation->AddAnimation(
+			"Idle",
+			{
+				"VNOB1.png"
+			},
+			0.14f,
+			true
+		);
+
+		animation->AddAnimation(
+			"Walk",
+			{
+				"VNOB1.png",
+				"VNOB2.png",
+				"VNOB3.png"
+			},
+			0.14f,
+			true
+		);
+	}
+
+	
+	animation->Play("Idle", true);
+
+	
 	auto* actor =
 		player->AddComponent<dae::GameActorComponent>(
 			playerPtr,
 			m_PlayerLives[static_cast<size_t>(playerIndex)],
 			0,
 			playerIndex + 1);
+
 
 	dae::EventBus::GetInstance().GetSubject().AddObserver(actor);
 
