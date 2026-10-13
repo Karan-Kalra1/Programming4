@@ -466,13 +466,17 @@ int main(int, char*[]) {
 		data_location = "../Data/";
 #endif
 	dae::Minigin engine(data_location);
-#if _DEBUG
+
+#if __EMSCRIPTEN__
+dae::ServiceLocator::RegisterSoundSystem(std::make_unique<dae::NullSoundSystem>());
+
+
+#elif _DEBUG
 	dae::ServiceLocator::RegisterSoundSystem(
 		std::make_unique<dae::LoggingSoundSystem>(
 			std::make_unique<dae::SDLSoundSystem>()));
 
-#elif __EMSCRIPTEN__
-	dae::ServiceLocator::RegisterSoundSystem(std::make_unique<dae::NullSoundSystem>());
+
 #else
 	dae::ServiceLocator::RegisterSoundSystem(
 		std::make_unique<dae::SDLSoundSystem>());
