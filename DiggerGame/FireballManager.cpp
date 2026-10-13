@@ -12,6 +12,7 @@
 #include "RenderComponent.h"
 #include "ServiceLocator.h"
 #include "GameSounds.h"
+#include "AnimationComponent.h"
 
 #include <algorithm>
 #include <cmath>
@@ -88,9 +89,26 @@ void digger::FireballManager::Shoot(
 
 	fireball->AddComponent<dae::RenderComponent>(
 		fireballPtr,
-		dae::ResourceManager::GetInstance().LoadTexture("Fireball.png"),
+		dae::ResourceManager::GetInstance().LoadTexture("VFIRE1.png"),
 		fireballSize,
 		fireballSize);
+
+	auto animation = fireball->AddComponent<dae::AnimationComponent>(
+		fireballPtr
+		);
+
+	animation->AddAnimation(
+		"rotate",
+		{
+			"VFIRE1.png",
+			"VFIRE2.png",
+			"VFIRE3.png"		
+		},
+		0.08f,
+		true);
+
+	animation->Play("rotate");
+
 
 	fireball->AddComponent<FireballComponent>(
 		fireballPtr,
