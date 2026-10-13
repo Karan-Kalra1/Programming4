@@ -470,14 +470,14 @@ int main(int, char*[]) {
 	dae::ServiceLocator::RegisterSoundSystem(
 		std::make_unique<dae::LoggingSoundSystem>(
 			std::make_unique<dae::SDLSoundSystem>()));
-#else
-#if __EMSCRIPTEN__
+
+#elif __EMSCRIPTEN__
 	dae::ServiceLocator::RegisterSoundSystem(std::make_unique<dae::NullSoundSystem>());
 #else
 	dae::ServiceLocator::RegisterSoundSystem(
 		std::make_unique<dae::SDLSoundSystem>());
 #endif
-#endif
+
 	engine.Run(load);
     return 0;
 }
