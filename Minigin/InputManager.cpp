@@ -28,20 +28,25 @@ bool dae::InputManager::ProcessInput()
 		if (e.type == SDL_EVENT_QUIT)
 			return false;
 
+#ifdef __EMSCRIPTEN__
+		if (e.type == SDL_EVENT_KEY_DOWN)
+		{
+			SDL_Log("SDL received key: %d", e.key.scancode);
+		}
+#endif
+
 		ImGui_ImplSDL3_ProcessEvent(&e);
 	}
 
-#ifdef __EMSCRIPTEN__
-	const bool* keys = SDL_GetKeyboardState(nullptr);
-
-	if (keys[SDL_SCANCODE_W])
-	{
-		SDL_Log("W is pressed");
-	}
-#endif
-
 	// Update current keyboard state
 	m_pCurrentKeyboardState = SDL_GetKeyboardState(nullptr);
+
+#ifdef __EMSCRIPTEN__
+	if (m_pCurrentKeyboardState[SDL_SCANCODE_W])
+	{
+		SDL_Log("SDL keyboard state: W is pressed");
+	}
+#endif
 
 	// Update controllers
 	for (auto& controller : m_Controllers)
