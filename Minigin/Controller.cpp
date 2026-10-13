@@ -19,43 +19,103 @@ namespace dae
 		{
 		}
 
-		void Update()
-		{
-			m_PreviousButtons = m_CurrentButtons;
-			m_CurrentButtons = 0;
+        void Update()
+        {
+            m_PreviousButtons = m_CurrentButtons;
+            m_CurrentButtons = 0;
 
 #if defined(_WIN32) && !defined(__EMSCRIPTEN__)
-			XINPUT_STATE state{};
-			const DWORD result = XInputGetState(static_cast<DWORD>(m_Index), &state);
-			if (result == ERROR_SUCCESS)
-			{
-				const WORD buttons = state.Gamepad.wButtons;
 
-				if (buttons & XINPUT_GAMEPAD_DPAD_UP)    m_CurrentButtons |= ToBit(ControllerButton::DPadUp);
-				if (buttons & XINPUT_GAMEPAD_DPAD_DOWN)  m_CurrentButtons |= ToBit(ControllerButton::DPadDown);
-				if (buttons & XINPUT_GAMEPAD_DPAD_LEFT)  m_CurrentButtons |= ToBit(ControllerButton::DPadLeft);
-				if (buttons & XINPUT_GAMEPAD_DPAD_RIGHT) m_CurrentButtons |= ToBit(ControllerButton::DPadRight);
-				if (buttons & XINPUT_GAMEPAD_A)          m_CurrentButtons |= ToBit(ControllerButton::ButtonA);
-				if (buttons & XINPUT_GAMEPAD_B)          m_CurrentButtons |= ToBit(ControllerButton::ButtonB);
-				if (buttons & XINPUT_GAMEPAD_X)          m_CurrentButtons |= ToBit(ControllerButton::ButtonX);
-				if (buttons & XINPUT_GAMEPAD_Y)          m_CurrentButtons |= ToBit(ControllerButton::ButtonY);
-			}
+            XINPUT_STATE state{};
+            const DWORD result =
+                XInputGetState(static_cast<DWORD>(m_Index), &state);
+
+            if (result == ERROR_SUCCESS)
+            {
+                const WORD buttons = state.Gamepad.wButtons;
+
+                if (buttons & XINPUT_GAMEPAD_DPAD_UP)
+                    m_CurrentButtons |= ToBit(ControllerButton::DPadUp);
+                if (buttons & XINPUT_GAMEPAD_DPAD_DOWN)
+                    m_CurrentButtons |= ToBit(ControllerButton::DPadDown);
+                if (buttons & XINPUT_GAMEPAD_DPAD_LEFT)
+                    m_CurrentButtons |= ToBit(ControllerButton::DPadLeft);
+                if (buttons & XINPUT_GAMEPAD_DPAD_RIGHT)
+                    m_CurrentButtons |= ToBit(ControllerButton::DPadRight);
+
+                if (buttons & XINPUT_GAMEPAD_A)
+                    m_CurrentButtons |= ToBit(ControllerButton::ButtonA);
+                if (buttons & XINPUT_GAMEPAD_B)
+                    m_CurrentButtons |= ToBit(ControllerButton::ButtonB);
+                if (buttons & XINPUT_GAMEPAD_X)
+                    m_CurrentButtons |= ToBit(ControllerButton::ButtonX);
+                if (buttons & XINPUT_GAMEPAD_Y)
+                    m_CurrentButtons |= ToBit(ControllerButton::ButtonY);
+            }
+
 #else
-			if (SDL_Gamepad* gamepad = SDL_OpenGamepad(m_Index))
-			{
-				if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP))    m_CurrentButtons |= ToBit(ControllerButton::DPadUp);
-				if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN))  m_CurrentButtons |= ToBit(ControllerButton::DPadDown);
-				if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT))  m_CurrentButtons |= ToBit(ControllerButton::DPadLeft);
-				if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) m_CurrentButtons |= ToBit(ControllerButton::DPadRight);
-				if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_SOUTH))      m_CurrentButtons |= ToBit(ControllerButton::ButtonA);
-				if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_EAST))       m_CurrentButtons |= ToBit(ControllerButton::ButtonB);
-				if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_WEST))       m_CurrentButtons |= ToBit(ControllerButton::ButtonX);
-				if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_NORTH))      m_CurrentButtons |= ToBit(ControllerButton::ButtonY);
 
-				SDL_CloseGamepad(gamepad);
-			}
+            int count = 0;
+            SDL_JoystickID* gamepads = SDL_GetGamepads(&count);
+
+            if (gamepads == nullptr)
+            {
+                SDL_Log("SDL_GetGamepads failed: %s", SDL_GetError());
+                return;
+            }
+
+            if (m_Index >= 0 && m_Index < count)
+            {
+                const SDL_JoystickID deviceID = gamepads[m_Index];
+
+                SDL_Gamepad* gamepad = SDL_OpenGamepad(deviceID);
+
+                if (gamepad != nullptr)
+                {
+                    if (SDL_GetGamepadButton(
+                        gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP))
+                        m_CurrentButtons |= ToBit(ControllerButton::DPadUp);
+
+                    if (SDL_GetGamepadButton(
+                        gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN))
+                        m_CurrentButtons |= ToBit(ControllerButton::DPadDown);
+
+                    if (SDL_GetGamepadButton(
+                        gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT))
+                        m_CurrentButtons |= ToBit(ControllerButton::DPadLeft);
+
+                    if (SDL_GetGamepadButton(
+                        gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT))
+                        m_CurrentButtons |= ToBit(ControllerButton::DPadRight);
+
+                    if (SDL_GetGamepadButton(
+                        gamepad, SDL_GAMEPAD_BUTTON_SOUTH))
+                        m_CurrentButtons |= ToBit(ControllerButton::ButtonA);
+
+                    if (SDL_GetGamepadButton(
+                        gamepad, SDL_GAMEPAD_BUTTON_EAST))
+                        m_CurrentButtons |= ToBit(ControllerButton::ButtonB);
+
+                    if (SDL_GetGamepadButton(
+                        gamepad, SDL_GAMEPAD_BUTTON_WEST))
+                        m_CurrentButtons |= ToBit(ControllerButton::ButtonX);
+
+                    if (SDL_GetGamepadButton(
+                        gamepad, SDL_GAMEPAD_BUTTON_NORTH))
+                        m_CurrentButtons |= ToBit(ControllerButton::ButtonY);
+
+                    SDL_CloseGamepad(gamepad);
+                }
+                else
+                {
+                    SDL_Log("SDL_OpenGamepad failed: %s", SDL_GetError());
+                }
+            }
+
+            SDL_free(gamepads);
+
 #endif
-		}
+        }
 
 		bool IsDown(ControllerButton button) const
 		{
