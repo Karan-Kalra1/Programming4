@@ -4,9 +4,15 @@ project(Programming4)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
 if(EMSCRIPTEN)
-  message("Using Emscripten!")
+    message("Using Emscripten!")
+
+    # Enable pthread support for all compiled targets,
+    # including the engine and its dependencies.
+    add_compile_options(-pthread)
 endif()
+
 
 include(FetchContent)
 
@@ -307,8 +313,10 @@ endif()
 # =========================
 
 if(EMSCRIPTEN)
-  set(EMSCRIPTEN_COMPILE_FLAGS "-g")
-  set(EMSCRIPTEN_LINK_FLAGS "-sUSE_FREETYPE=1 -sUSE_HARFBUZZ=1 -g -sALLOW_MEMORY_GROWTH --preload-file \"${CMAKE_CURRENT_SOURCE_DIR}/Data@/\"")
+set(EMSCRIPTEN_COMPILE_FLAGS "-g")
+set(EMSCRIPTEN_LINK_FLAGS
+    "-pthread -sPTHREAD_POOL_SIZE=2 -sUSE_FREETYPE=1 -sUSE_HARFBUZZ=1 -g -sALLOW_MEMORY_GROWTH --preload-file \"${CMAKE_CURRENT_SOURCE_DIR}/Data@/\"")
+
 
   set_target_properties(${GAME_TARGET} PROPERTIES
     COMPILE_FLAGS "${EMSCRIPTEN_COMPILE_FLAGS}"

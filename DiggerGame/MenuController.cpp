@@ -25,10 +25,10 @@ void digger::MenuController::ShowStartMenu()
 	m_StartMenuIndex = 0;
 
 	auto fontTitle =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 48);
+		dae::ResourceManager::GetInstance().LoadFont("Px437_IBM_BIOS.ttf", 48);
 
 	auto fontMenu =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 32);
+		dae::ResourceManager::GetInstance().LoadFont("Px437_IBM_BIOS.ttf", 32);
 
 	auto addText = [&](const std::string& text, float x, float y, auto font)
 		{
@@ -65,10 +65,10 @@ void digger::MenuController::ShowModeSelectMenu()
 	m_ModeMenuIndex = 0;
 
 	auto fontTitle =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 40);
+		dae::ResourceManager::GetInstance().LoadFont("Px437_IBM_BIOS.ttf", 40);
 
 	auto fontMenu =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 28);
+		dae::ResourceManager::GetInstance().LoadFont("Px437_IBM_BIOS.ttf", 28);
 
 	auto addText = [&](const std::string& text, float x, float y, auto font)
 		{

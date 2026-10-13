@@ -35,10 +35,10 @@ void digger::HighScoreScreenController::ShowEntryScreen(int score)
 	m_InitialIndex = 0;
 
 	auto fontBig =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 36);
+		dae::ResourceManager::GetInstance().LoadFont("Px437_IBM_BIOS.ttf", 36);
 
 	auto fontSmall =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 24);
+		dae::ResourceManager::GetInstance().LoadFont("Px437_IBM_BIOS.ttf", 24);
 
 	auto addText = [&](const std::string& text, float x, float y, auto font)
 		{
@@ -87,13 +87,13 @@ void digger::HighScoreScreenController::ShowHighScoreList()
 	m_ShowingList = true;
 
 	auto fontTitle =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 36);
+		dae::ResourceManager::GetInstance().LoadFont("Px437_IBM_BIOS.ttf", 36);
 
 	auto fontHeader =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 24);
+		dae::ResourceManager::GetInstance().LoadFont("Px437_IBM_BIOS.ttf", 24);
 
 	auto fontRow =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 22);
+		dae::ResourceManager::GetInstance().LoadFont("Px437_IBM_BIOS.ttf", 22);
 
 	auto addText = [&](const std::string& text, float x, float y, auto font)
 		{

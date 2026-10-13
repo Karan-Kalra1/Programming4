@@ -28,7 +28,7 @@ void digger::HudController::Create(GameManagerComponent& game)
 	const auto& players = game.GetPlayers();
 
 	auto font =
-		dae::ResourceManager::GetInstance().LoadFont("Lingua.otf", 22);
+		dae::ResourceManager::GetInstance().LoadFont("Px437_IBM_BIOS.ttf", 22);
 
 	const float screenWidth = 1056.f;
 
