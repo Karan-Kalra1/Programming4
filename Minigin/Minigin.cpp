@@ -76,11 +76,23 @@ dae::Minigin::Minigin(const std::filesystem::path& dataPath)
 
 	PrintSDLVersion();
 	
+
 	if (!SDL_InitSubSystem(SDL_INIT_VIDEO))
 	{
 		SDL_Log("Renderer error: %s", SDL_GetError());
-		throw std::runtime_error(std::string("SDL_Init Error: ") + SDL_GetError());
+		throw std::runtime_error(
+			std::string("SDL_Init Error: ") + SDL_GetError());
 	}
+
+#ifdef __EMSCRIPTEN__
+	SDL_SetHint(
+		SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT,
+		"#canvas");
+
+	SDL_SetHint(
+		SDL_HINT_EMSCRIPTEN_CANVAS_SELECTOR,
+		"#canvas");
+#endif
 
 	g_window = SDL_CreateWindow(
 		"Programming 4 assignment",
@@ -88,10 +100,13 @@ dae::Minigin::Minigin(const std::filesystem::path& dataPath)
 		576,
 		SDL_WINDOW_OPENGL
 	);
-	if (g_window == nullptr) 
+
+	if (g_window == nullptr)
 	{
-		throw std::runtime_error(std::string("SDL_CreateWindow Error: ") + SDL_GetError());
+		throw std::runtime_error(
+			std::string("SDL_CreateWindow Error: ") + SDL_GetError());
 	}
+
 
 	Renderer::GetInstance().Init(g_window);
 	ResourceManager::GetInstance().Init(dataPath);

@@ -31,6 +31,15 @@ bool dae::InputManager::ProcessInput()
 		ImGui_ImplSDL3_ProcessEvent(&e);
 	}
 
+#ifdef __EMSCRIPTEN__
+	const bool* keys = SDL_GetKeyboardState(nullptr);
+
+	if (keys[SDL_SCANCODE_W])
+	{
+		SDL_Log("W is pressed");
+	}
+#endif
+
 	// Update current keyboard state
 	m_pCurrentKeyboardState = SDL_GetKeyboardState(nullptr);
 
