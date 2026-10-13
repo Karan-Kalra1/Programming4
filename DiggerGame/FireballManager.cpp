@@ -107,6 +107,16 @@ void digger::FireballManager::Shoot(
 		0.08f,
 		true);
 
+	animation->AddAnimation(
+		"explode",
+		{
+			"VEXP1.png",
+			"VEXP2.png",
+			"VEXP3.png"
+		},
+		0.08f,
+		false);
+
 	animation->Play("rotate");
 
 
@@ -159,9 +169,31 @@ void digger::FireballManager::CheckHit(
 	const glm::ivec2 fireGrid =
 		WorldToGrid(game, fireCenter);
 
+
+	auto* fireballComp =
+		fireball->GetComponent<FireballComponent>();
+
+	if (fireballComp && fireballComp->IsExploding())
+	{
+		auto* animation =
+			fireball->GetComponent<dae::AnimationComponent>();
+
+		if (animation &&
+			animation->GetCurrentAnimation() == "explode" &&
+			!animation->IsPlaying())
+		{
+			Remove(game, fireball);
+		}
+
+		return;
+	}
+
+
 	if (IsBlockingTileForFireball(game, fireGrid))
 	{
-		Remove(game, fireball);
+		if (fireballComp)
+			fireballComp->StartExplosion();
+
 		return;
 	}
 
@@ -194,7 +226,9 @@ void digger::FireballManager::CheckHit(
 		if ((diff.x * diff.x + diff.y * diff.y) <= radius * radius)
 		{
 			enemy->Kill();
-			Remove(game, fireball);
+			if (fireballComp)
+				fireballComp->StartExplosion();
+
 			return;
 		}
 	}
@@ -233,7 +267,9 @@ void digger::FireballManager::CheckHit(
 			if ((diff.x * diff.x + diff.y * diff.y) <= radius * radius)
 			{
 				game.DamagePlayer(i);
-				Remove(game, fireball);
+				if (fireballComp)
+					fireballComp->StartExplosion();
+
 				return;
 			}
 		}

@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
+#include <SDL3/SDL_rect.h>
 #include "Component.h"
+
 
 namespace dae
 {
@@ -17,6 +19,12 @@ namespace dae
 			: Component(owner)
 			, m_texture(std::move(texture))
 		{
+		}
+
+		void SetSourceRect(float x, float y, float width, float height)
+		{
+			m_SourceRect = { x, y, width, height };
+			m_UseSourceRect = true;
 		}
 
 		// Fixed-size render (used for dirt tiles)
@@ -42,6 +50,9 @@ namespace dae
 
 	private:
 		std::shared_ptr<Texture2D> m_texture{};
+
+		SDL_FRect m_SourceRect{};
+		bool m_UseSourceRect = false;
 
 		bool m_UseFixedSize{};
 		float m_Width{};

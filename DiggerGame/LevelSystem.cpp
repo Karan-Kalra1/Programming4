@@ -82,11 +82,20 @@ void digger::LevelSystem::SpawnDirtTiles(GameManagerComponent& game)
 						m_MapOffset.x + static_cast<float>(x * m_TileSize) + px * pieceSize,
 						m_MapOffset.y + static_cast<float>(y * m_TileSize) + py * pieceSize);
 
-					dirt->AddComponent<dae::RenderComponent>(
+					auto* render = dirt->AddComponent<dae::RenderComponent>(
 						dirtPtr,
 						dirtTexture,
 						pieceSize,
 						pieceSize);
+
+					const float textureWidth = static_cast<float>(m_TileSize);
+					const float textureHeight = static_cast<float>(m_TileSize);
+
+					render->SetSourceRect(
+						px * (textureWidth / subdivisions),
+						py * (textureHeight / subdivisions),
+						textureWidth / subdivisions,
+						textureHeight / subdivisions);
 
 					dirtTile.pieces[pieceIndex] = dirtPtr;
 

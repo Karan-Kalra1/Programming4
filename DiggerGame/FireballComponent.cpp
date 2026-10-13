@@ -2,6 +2,7 @@
 #include "GameManagerComponent.h"
 #include "GameObject.h"
 #include "TransformComponent.h"
+#include "AnimationComponent.h"
 #include "MiniginTime.h"
 
 digger::FireballComponent::FireballComponent(
@@ -17,10 +18,32 @@ digger::FireballComponent::FireballComponent(
 	, m_OwnerPlayerIndex(ownerPlayerIndex)
 {
 }
+
+void digger::FireballComponent::StartExplosion()
+{
+	if (m_IsExploding)
+		return;
+
+	m_IsExploding = true;
+
+	if (auto* animation =
+		GetOwner()->GetComponent<dae::AnimationComponent>())
+	{
+		animation->Play("explode");
+	}
+}
+
 void digger::FireballComponent::Update()
 {
 	if (m_Manager && m_Manager->IsGameplayFrozen())
 		return;
+
+
+	if (m_IsExploding)
+	{
+		m_Manager->CheckFireballHit(GetOwner());
+		return;
+	}
 
 	auto* tr = GetOwner()->GetComponent<dae::TransformComponent>();
 	if (!tr || !m_Manager)

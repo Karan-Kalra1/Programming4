@@ -18,6 +18,9 @@ namespace digger
 
 		int GetOwnerPlayerIndex() const { return m_OwnerPlayerIndex; }
 
+		void StartExplosion();
+		bool IsExploding() const { return m_IsExploding; }
+
 		void Update() override;
 
 	private:
@@ -25,5 +28,6 @@ namespace digger
 		glm::vec2 m_Direction{};
 		float m_Speed{};
 		int m_OwnerPlayerIndex{};
+		bool m_IsExploding = false;
 	};
 }

@@ -169,3 +169,27 @@ void dae::Renderer::RenderTextureRotated(
 }
 
 SDL_Renderer* dae::Renderer::GetSDLRenderer() const { return m_renderer; }
+
+
+void dae::Renderer::RenderTextureRegion(
+	const Texture2D& texture,
+	float x,
+	float y,
+	float width,
+	float height,
+	const SDL_FRect& sourceRect) const
+{
+	SDL_FRect dst{
+		x,
+		y,
+		width,
+		height
+	};
+
+	SDL_RenderTexture(
+		GetSDLRenderer(),
+		texture.GetSDLTexture(),
+		&sourceRect,
+		&dst);
+}
+
