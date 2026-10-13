@@ -2,10 +2,12 @@
 #include <memory>
 #include <vector>
 #include <SDL3/SDL.h>
+#include <unordered_set>
 #include "Singleton.h"
 #include "InputTypes.h"
 #include "Controller.h"
 #include "Command.h"
+
 
 namespace dae
 {
@@ -44,6 +46,11 @@ namespace dae
 		std::vector<std::unique_ptr<Controller>> m_Controllers{};
 		std::vector<KeyboardBinding> m_KeyboardBindings{};
 		std::vector<ControllerBinding> m_ControllerBindings{};
+
+
+		// Inside InputManager:
+		std::unordered_set<SDL_Scancode> m_KeysDown;
+		std::unordered_set<SDL_Scancode> m_KeysUp;
 
 		const bool* m_pCurrentKeyboardState{};
 		std::vector<bool> m_PreviousKeyboardState{};

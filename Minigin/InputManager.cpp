@@ -22,11 +22,20 @@ bool dae::InputManager::ProcessInput()
 		m_PreviousKeyboardState[i] = m_pCurrentKeyboardState[i];
 	}
 
+	m_KeysDown.clear();
+	m_KeysUp.clear();
+
 	SDL_Event e{};
 	while (SDL_PollEvent(&e))
 	{
 		if (e.type == SDL_EVENT_QUIT)
 			return false;
+
+		if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat)
+			m_KeysDown.insert(e.key.scancode);
+
+		if (e.type == SDL_EVENT_KEY_UP)
+			m_KeysUp.insert(e.key.scancode);
 
 		ImGui_ImplSDL3_ProcessEvent(&e);
 	}
@@ -44,23 +53,23 @@ bool dae::InputManager::ProcessInput()
 	// Execute keyboard commands
 	for (auto& binding : m_KeyboardBindings)
 	{
-		const bool isPressed = m_pCurrentKeyboardState[binding.key];
-		const bool wasPressed = m_PreviousKeyboardState[binding.key];
+		//const bool isPressed = m_pCurrentKeyboardState[binding.key];
+		//const bool wasPressed = m_PreviousKeyboardState[binding.key];
 
 		bool shouldExecute = false;
 
 		switch (binding.state)
 		{
 		case KeyState::Down:
-			shouldExecute = isPressed && !wasPressed;
+			shouldExecute = m_KeysDown.contains(binding.key);
 			break;
 
 		case KeyState::Up:
-			shouldExecute = !isPressed && wasPressed;
+			shouldExecute = m_KeysUp.contains(binding.key);
 			break;
 
 		case KeyState::Pressed:
-			shouldExecute = isPressed;
+			shouldExecute = m_pCurrentKeyboardState[binding.key];
 			break;
 		}
 
