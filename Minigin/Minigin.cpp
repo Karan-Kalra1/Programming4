@@ -84,15 +84,6 @@ dae::Minigin::Minigin(const std::filesystem::path& dataPath)
 			std::string("SDL_Init Error: ") + SDL_GetError());
 	}
 
-#ifdef __EMSCRIPTEN__
-	SDL_SetHint(
-		SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT,
-		"#window");
-
-	SDL_SetHint(
-		SDL_HINT_EMSCRIPTEN_CANVAS_SELECTOR,
-		"#canvas");
-#endif
 
 	g_window = SDL_CreateWindow(
 		"Programming 4 assignment",
