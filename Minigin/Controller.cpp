@@ -1,3 +1,4 @@
+
 #include "Controller.h"
 
 #if defined(_WIN32) && !defined(__EMSCRIPTEN__)
@@ -11,16 +12,29 @@
 
 namespace dae
 {
-	class Controller::ControllerImpl
-	{
-	public:
-		explicit ControllerImpl(int index)
-			: m_Index(index)
-		{
-		}
+    class Controller::ControllerImpl
+    {
+    public:
+        explicit ControllerImpl(int index)
+            : m_Index(index)
+        {
+#if defined(_WIN32) && !defined(__EMSCRIPTEN__)
+            // XInput uses controller indexes directly.
+#else
+            OpenGamepad();
+#endif
+        }
+
+        ~ControllerImpl()
+        {
+#if !defined(_WIN32) || defined(__EMSCRIPTEN__)
+            CloseGamepad();
+#endif
+        }
 
         void Update()
         {
+            // Preserve the previous frame's state before polling.
             m_PreviousButtons = m_CurrentButtons;
             m_CurrentButtons = 0;
 
@@ -36,139 +50,163 @@ namespace dae
 
                 if (buttons & XINPUT_GAMEPAD_DPAD_UP)
                     m_CurrentButtons |= ToBit(ControllerButton::DPadUp);
+
                 if (buttons & XINPUT_GAMEPAD_DPAD_DOWN)
                     m_CurrentButtons |= ToBit(ControllerButton::DPadDown);
+
                 if (buttons & XINPUT_GAMEPAD_DPAD_LEFT)
                     m_CurrentButtons |= ToBit(ControllerButton::DPadLeft);
+
                 if (buttons & XINPUT_GAMEPAD_DPAD_RIGHT)
                     m_CurrentButtons |= ToBit(ControllerButton::DPadRight);
 
                 if (buttons & XINPUT_GAMEPAD_A)
                     m_CurrentButtons |= ToBit(ControllerButton::ButtonA);
+
                 if (buttons & XINPUT_GAMEPAD_B)
                     m_CurrentButtons |= ToBit(ControllerButton::ButtonB);
+
                 if (buttons & XINPUT_GAMEPAD_X)
                     m_CurrentButtons |= ToBit(ControllerButton::ButtonX);
+
                 if (buttons & XINPUT_GAMEPAD_Y)
                     m_CurrentButtons |= ToBit(ControllerButton::ButtonY);
             }
 
 #else
 
-            int count = 0;
-            SDL_JoystickID* gamepads = SDL_GetGamepads(&count);
+            // Retry opening if no gamepad was available at construction.
+            if (m_Gamepad == nullptr)
+                OpenGamepad();
 
-            if (gamepads == nullptr)
+            if (m_Gamepad != nullptr && SDL_GamepadConnected(m_Gamepad))
             {
-                SDL_Log("SDL_GetGamepads failed: %s", SDL_GetError());
-                return;
-            }
+                if (SDL_GetGamepadButton(
+                    m_Gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP))
+                    m_CurrentButtons |= ToBit(ControllerButton::DPadUp);
 
-            if (m_Index >= 0 && m_Index < count)
+                if (SDL_GetGamepadButton(
+                    m_Gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN))
+                    m_CurrentButtons |= ToBit(ControllerButton::DPadDown);
+
+                if (SDL_GetGamepadButton(
+                    m_Gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT))
+                    m_CurrentButtons |= ToBit(ControllerButton::DPadLeft);
+
+                if (SDL_GetGamepadButton(
+                    m_Gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT))
+                    m_CurrentButtons |= ToBit(ControllerButton::DPadRight);
+
+                if (SDL_GetGamepadButton(
+                    m_Gamepad, SDL_GAMEPAD_BUTTON_SOUTH))
+                    m_CurrentButtons |= ToBit(ControllerButton::ButtonA);
+
+                if (SDL_GetGamepadButton(
+                    m_Gamepad, SDL_GAMEPAD_BUTTON_EAST))
+                    m_CurrentButtons |= ToBit(ControllerButton::ButtonB);
+
+                if (SDL_GetGamepadButton(
+                    m_Gamepad, SDL_GAMEPAD_BUTTON_WEST))
+                    m_CurrentButtons |= ToBit(ControllerButton::ButtonX);
+
+                if (SDL_GetGamepadButton(
+                    m_Gamepad, SDL_GAMEPAD_BUTTON_NORTH))
+                    m_CurrentButtons |= ToBit(ControllerButton::ButtonY);
+            }
+            else if (m_Gamepad != nullptr)
             {
-                const SDL_JoystickID deviceID = gamepads[m_Index];
-
-                SDL_Gamepad* gamepad = SDL_OpenGamepad(deviceID);
-
-                if (gamepad != nullptr)
-                {
-                    if (SDL_GetGamepadButton(
-                        gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP))
-                        m_CurrentButtons |= ToBit(ControllerButton::DPadUp);
-
-                    if (SDL_GetGamepadButton(
-                        gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN))
-                        m_CurrentButtons |= ToBit(ControllerButton::DPadDown);
-
-                    if (SDL_GetGamepadButton(
-                        gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT))
-                        m_CurrentButtons |= ToBit(ControllerButton::DPadLeft);
-
-                    if (SDL_GetGamepadButton(
-                        gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT))
-                        m_CurrentButtons |= ToBit(ControllerButton::DPadRight);
-
-                    if (SDL_GetGamepadButton(
-                        gamepad, SDL_GAMEPAD_BUTTON_SOUTH))
-                        m_CurrentButtons |= ToBit(ControllerButton::ButtonA);
-
-                    if (SDL_GetGamepadButton(
-                        gamepad, SDL_GAMEPAD_BUTTON_EAST))
-                        m_CurrentButtons |= ToBit(ControllerButton::ButtonB);
-
-                    if (SDL_GetGamepadButton(
-                        gamepad, SDL_GAMEPAD_BUTTON_WEST))
-                        m_CurrentButtons |= ToBit(ControllerButton::ButtonX);
-
-                    if (SDL_GetGamepadButton(
-                        gamepad, SDL_GAMEPAD_BUTTON_NORTH))
-                        m_CurrentButtons |= ToBit(ControllerButton::ButtonY);
-
-                    SDL_CloseGamepad(gamepad);
-                }
-                else
-                {
-                    SDL_Log("SDL_OpenGamepad failed: %s", SDL_GetError());
-                }
+                // The device disconnected.
+                CloseGamepad();
             }
-
-            SDL_free(gamepads);
 
 #endif
         }
 
-		bool IsDown(ControllerButton button) const
-		{
-			const uint16_t bit = ToBit(button);
-			return (m_CurrentButtons & bit) && !(m_PreviousButtons & bit);
-		}
+        bool IsDown(ControllerButton button) const
+        {
+            const uint16_t bit = ToBit(button);
 
-		bool IsUp(ControllerButton button) const
-		{
-			const uint16_t bit = ToBit(button);
-			return !(m_CurrentButtons & bit) && (m_PreviousButtons & bit);
-		}
+            return (m_CurrentButtons & bit) != 0 &&
+                (m_PreviousButtons & bit) == 0;
+        }
 
-		bool IsPressed(ControllerButton button) const
-		{
-			return (m_CurrentButtons & ToBit(button)) != 0;
-		}
+        bool IsUp(ControllerButton button) const
+        {
+            const uint16_t bit = ToBit(button);
 
-	private:
-		static uint16_t ToBit(ControllerButton button)
-		{
-			return static_cast<uint16_t>(1 << static_cast<uint16_t>(button));
-		}
+            return (m_CurrentButtons & bit) == 0 &&
+                (m_PreviousButtons & bit) != 0;
+        }
 
-		int m_Index{};
-		uint16_t m_CurrentButtons{};
-		uint16_t m_PreviousButtons{};
-	};
+        bool IsPressed(ControllerButton button) const
+        {
+            return (m_CurrentButtons & ToBit(button)) != 0;
+        }
 
-	Controller::Controller(int index)
-		: m_pImpl(std::make_unique<ControllerImpl>(index))
-	{
-	}
+    private:
+        static uint16_t ToBit(ControllerButton button)
+        {
+            return static_cast<uint16_t>(
+                1u << static_cast<uint16_t>(button));
+        }
 
-	Controller::~Controller() = default;
+#if !defined(_WIN32) || defined(__EMSCRIPTEN__)
 
-	void Controller::Update()
-	{
-		m_pImpl->Update();
-	}
+        void OpenGamepad()
+        {
+            int count = 0;
+            SDL_JoystickID* gamepads = SDL_GetGamepads(&count);
 
-	bool Controller::IsDown(ControllerButton button) const
-	{
-		return m_pImpl->IsDown(button);
-	}
+            if (gamepads == nullptr)
+                return;
 
-	bool Controller::IsUp(ControllerButton button) const
-	{
-		return m_pImpl->IsUp(button);
-	}
+            if (m_Index >= 0 && m_Index < count)
+                m_Gamepad = SDL_OpenGamepad(gamepads[m_Index]);
 
-	bool Controller::IsPressed(ControllerButton button) const
-	{
-		return m_pImpl->IsPressed(button);
-	}
+            SDL_free(gamepads);
+        }
+
+        void CloseGamepad()
+        {
+            if (m_Gamepad != nullptr)
+            {
+                SDL_CloseGamepad(m_Gamepad);
+                m_Gamepad = nullptr;
+            }
+        }
+
+        SDL_Gamepad* m_Gamepad{};
+
+#endif
+
+        int m_Index{};
+        uint16_t m_CurrentButtons{};
+        uint16_t m_PreviousButtons{};
+    };
+
+    Controller::Controller(int index)
+        : m_pImpl(std::make_unique<ControllerImpl>(index))
+    {}
+
+    Controller::~Controller() = default;
+
+    void Controller::Update()
+    {
+        m_pImpl->Update();
+    }
+
+    bool Controller::IsDown(ControllerButton button) const
+    {
+        return m_pImpl->IsDown(button);
+    }
+
+    bool Controller::IsUp(ControllerButton button) const
+    {
+        return m_pImpl->IsUp(button);
+    }
+
+    bool Controller::IsPressed(ControllerButton button) const
+    {
+        return m_pImpl->IsPressed(button);
+    }
 }
