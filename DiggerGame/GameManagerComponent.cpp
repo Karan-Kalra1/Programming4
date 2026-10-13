@@ -99,8 +99,15 @@ void digger::GameManagerComponent::LoadLevel(int index)
 
 	m_CurrentLevel = index;
 
+#if __EMSCRIPTEN__
+	const auto levelPath =
+		"Levels/Level" + std::to_string(index + 1) + ".txt";
+
+#else
 	const auto levelPath =
 		"Data/Levels/Level" + std::to_string(index + 1) + ".txt";
+
+#endif
 
 	const LevelData data = LevelLoader::Load(levelPath);
 
