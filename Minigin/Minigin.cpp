@@ -87,7 +87,7 @@ dae::Minigin::Minigin(const std::filesystem::path& dataPath)
 #ifdef __EMSCRIPTEN__
 	SDL_SetHint(
 		SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT,
-		"#canvas");
+		"#window");
 
 	SDL_SetHint(
 		SDL_HINT_EMSCRIPTEN_CANVAS_SELECTOR,
